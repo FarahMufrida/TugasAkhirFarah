@@ -1,13 +1,12 @@
-import './bootstrap';
+import "./bootstrap";
 
-import Alpine from 'alpinejs';
+import Alpine from "alpinejs";
 window.Alpine = Alpine;
 Alpine.start();
 
 import Chart from "chart.js/auto";
 
 document.addEventListener("DOMContentLoaded", function () {
-
     /* ================= PIE CHART ================= */
     const pieCtx = document.getElementById("pieChart");
 
@@ -16,19 +15,21 @@ document.addEventListener("DOMContentLoaded", function () {
             type: "pie",
             data: {
                 labels: ["Positif", "Negatif", "Netral"],
-                datasets: [{
-                    data: [68, 20, 12],
-                }]
+                datasets: [
+                    {
+                        data: [68, 20, 12],
+                    },
+                ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: "bottom"
-                    }
-                }
-            }
+                        position: "bottom",
+                    },
+                },
+            },
         });
     }
 
@@ -39,7 +40,12 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(barCtx, {
             type: "bar",
             data: {
-                labels: ["Papuma", "Watu Ulo", "Sukorambi", "Rembangan"],
+                labels: [
+                    "Papuma",
+                    "Watu Ulo",
+                    "Sukorambi",
+                    "Air Terjun Tancak Tulis",
+                ],
                 datasets: [
                     {
                         label: "Positif",
@@ -52,24 +58,23 @@ document.addEventListener("DOMContentLoaded", function () {
                     {
                         label: "Netral",
                         data: [10, 5, 8, 4],
-                    }
-                ]
+                    },
+                ],
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: "bottom"
-                    }
+                        position: "bottom",
+                    },
                 },
                 scales: {
                     y: {
-                        beginAtZero: true
-                    }
-                }
-            }
+                        beginAtZero: true,
+                    },
+                },
+            },
         });
     }
-
 });

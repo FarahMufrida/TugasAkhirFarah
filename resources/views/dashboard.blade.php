@@ -17,7 +17,7 @@
             <option>Pantai Papuma</option>
             <option>Pantai Watu Ulo</option>
             <option>Taman Botani Sukorambi</option>
-            <option>Rembangan</option>
+            <option>Air Terjun Tancak Tulis</option>
         </select> -->
     </div>
 
