@@ -9,11 +9,11 @@ class Ulasan extends Model
 {
     use HasFactory;
 
-    protected $table = 'ulasan_mentah';
+    protected $table = 'ulasan';
 
     protected $fillable = [
         'nama_wisata',
-        'reviewer_name',
+        'reviewer',
         'rating',
         'ulasan',
         'tanggal',

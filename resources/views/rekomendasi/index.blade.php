@@ -30,39 +30,59 @@
     </div>
 
     <!-- CARD GRID -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+   <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-        <!-- ISU UTAMA -->
-        <div class="bg-white rounded-xl shadow p-6 text-center">
-            <h3 class="text-gray-600 font-semibold mb-2">
-                Isu Utama:
-            </h3>
-            <p class="text-lg font-bold text-gray-800">
-                {{ $isuUtama }}
-            </p>
+    <!-- Isu Utama -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="text-gray-700 font-semibold mb-4">
+            Isu Utama
+        </h3>
+
+        <div class="text-sm text-gray-600 space-y-2">
+            <span class="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">
+                Kebersihan
+            </span>
+            <span class="inline-block bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">
+                Parkir
+            </span>
         </div>
-
-        <!-- KEYWORD -->
-        <div class="bg-white rounded-xl shadow p-6 text-center">
-            <h3 class="text-gray-600 font-semibold mb-2">
-                Kata Kunci Dominan:
-            </h3>
-            <p class="text-lg font-bold text-gray-800">
-                {{ $kataDominan }}
-            </p>
-        </div>
-
-        <!-- SARAN -->
-        <div class="bg-white rounded-xl shadow p-6 text-center">
-            <h3 class="text-gray-600 font-semibold mb-2">
-                Saran:
-            </h3>
-            <p class="text-lg font-bold text-gray-800">
-                {{ $saran }}
-            </p>
-        </div>
-
     </div>
+
+    <!-- Kata Kunci Dominan -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="text-gray-700 font-semibold mb-4">
+            Kata Kunci Dominan
+        </h3>
+
+        <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex justify-between">
+                <span>kotor</span>
+                <span class="font-semibold">15x</span>
+            </li>
+            <li class="flex justify-between">
+                <span>parkir</span>
+                <span class="font-semibold">10x</span>
+            </li>
+            <li class="flex justify-between">
+                <span>mahal</span>
+                <span class="font-semibold">7x</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Saran -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="text-gray-700 font-semibold mb-4">
+            Saran Perbaikan
+        </h3>
+
+        <p class="text-sm text-gray-600 leading-relaxed">
+            Perlu peningkatan kebersihan area wisata serta evaluasi sistem
+            pengelolaan parkir untuk meningkatkan kenyamanan pengunjung.
+        </p>
+    </div>
+
+</div>
 
 </div>
 

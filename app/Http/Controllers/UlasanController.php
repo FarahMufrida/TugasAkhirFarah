@@ -31,18 +31,31 @@ public function index()
 
 
     // Tombol ambil data terbaru
-    public function ambilData()
-    {
-        // nanti scraping otomatis disini (sementara dummy)
-        return redirect()->route('ulasan.index');
-    }
+  public function ambilData()
+{
+    $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
+    $scriptPath = base_path('scraper/scraping_pipeline.py');
+
+    $command = $pythonPath . " " . $scriptPath . " 2>&1";
+
+    shell_exec($command);
+
+    return redirect()->route('ulasan.index')
+        ->with('success', 'Data berhasil diambil dari Google Maps');
+}
 
     // Tombol analisis data
     public function analisisData()
-    {
-        // jalankan python naive bayes
-        shell_exec("python sentimen.py");
+{
+    $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
 
-        return redirect()->route('ulasan.index');
-    }
+    $scriptPath = base_path('scraper/preprocessing.py');
+
+    $command = $pythonPath . " " . $scriptPath . " 2>&1";
+
+    shell_exec($command);
+
+    return redirect()->route('ulasan.index')
+        ->with('success','Preprocessing berhasil dilakukan');
+}
 }

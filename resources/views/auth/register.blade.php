@@ -100,7 +100,7 @@
             <img src="{{ asset('images/botani.jpg') }}"
                  class="slide hidden absolute inset-0 w-full h-full object-cover">
 
-            <img src="{{ asset('images/tancak.jpeg') }}"
+            <img src="{{ asset('images/gununggambir.jpeg') }}"
                  class="slide hidden absolute inset-0 w-full h-full object-cover">
 
             <!-- Overlay -->

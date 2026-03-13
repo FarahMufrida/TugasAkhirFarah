@@ -18,7 +18,7 @@ return new class extends Migration
         $table->integer('rating')->nullable();
         $table->text('ulasan');
         $table->string('tanggal')->nullable();
-        $table->datetime('scraping_date')->nullable();
+        $table->datetime('gununggambir_date')->nullable();
         $table->boolean('is_processed')->default(0);
         $table->timestamps();
     });

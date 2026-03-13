@@ -31,7 +31,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/ulasan', [UlasanController::class, 'index'])->name('ulasan.index');
     Route::post('/ulasan/ambil', [UlasanController::class, 'ambilData'])->name('ulasan.ambil');
     Route::post('/ulasan/analisis', [UlasanController::class, 'analisisData'])->name('ulasan.analisis');
-    Route::get('/hasil-analisis', [AnalisisController::class, 'index'])
+        Route::get('/hasil-analisis', [AnalisisController::class, 'index'])
     ->name('analisis.index');
    Route::get('/rekomendasi', [RekomendasiController::class, 'index'])
     ->name('rekomendasi.index');;

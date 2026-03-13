@@ -43,8 +43,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 labels: [
                     "Papuma",
                     "Watu Ulo",
-                    "Sukorambi",
-                    "Air Terjun Tancak Tulis",
+                    "teluklove",
+                    "Kebun Teh Gunung Gambir ",
                 ],
                 datasets: [
                     {
