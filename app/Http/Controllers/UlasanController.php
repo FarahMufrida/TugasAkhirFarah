@@ -4,58 +4,51 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Ulasan;
-// use App\Models\HasilSentimen;
 use App\Models\PreprocessingData;
-
 
 class UlasanController extends Controller
 {
-    // public function index()
-    // {
-    //     $mentah = Ulasan::where('is_processed', 0)->get();
-    //     // $hasil  = HasilSentimen::latest()->get();
+    public function index(Request $request)
+    {
+        $wisata = $request->wisata;
 
-    //     // return view('ulasan.index', compact('mentah', 'hasil'));
-    // }
-
-public function index()
-{
-    // Data ulasan mentah (belum diproses)
-    $mentah = Ulasan::all();
-
-    // Data hasil preprocessing
-    $preprocessing = PreprocessingData::latest()->get();
-
-    return view('ulasan.index', compact('mentah', 'preprocessing'));
+        $query = Ulasan::query();
+        if ($request->filled('search')) {
+         $query->where('ulasan', 'LIKE', '%' . $request->search . '%');
 }
 
+        if ($wisata) {
+            $query->where('wisata', 'LIKE', '%' . $wisata . '%');
+        }
 
-    // Tombol ambil data terbaru
-  public function ambilData()
-{
-    $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
-    $scriptPath = base_path('scraper/scraping_pipeline.py');
+        // ✅ PAGINATION 50 DATA
+        $mentah = $query->latest()->paginate(50)->withQueryString();
 
-    $command = $pythonPath . " " . $scriptPath . " 2>&1";
+        // preprocessing
+        $preprocessing = PreprocessingData::latest()->paginate(50);
 
-    shell_exec($command);
+        return view('ulasan.index', compact('mentah', 'preprocessing'));
+    }
 
-    return redirect()->route('ulasan.index')
-        ->with('success', 'Data berhasil diambil dari Google Maps');
-}
+    public function ambilData()
+    {
+        $pythonPath = "C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe";
+        $scriptPath = base_path('scraper/scraping_pipeline.py');
 
-    // Tombol analisis data
+        shell_exec($pythonPath . " " . $scriptPath);
+
+        return redirect()->route('ulasan.index')
+            ->with('success','Data berhasil diambil');
+    }
+
     public function analisisData()
-{
-    $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
+    {
+        $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
+        $scriptPath = '"C:\\laragon\\www\\Sentara\\scraper\\preprocessing.py"';
 
-    $scriptPath = base_path('scraper/preprocessing.py');
+        shell_exec($pythonPath . " " . $scriptPath . " 2>&1");
 
-    $command = $pythonPath . " " . $scriptPath . " 2>&1";
-
-    shell_exec($command);
-
-    return redirect()->route('ulasan.index')
-        ->with('success','Preprocessing berhasil dilakukan');
-}
+        return redirect()->route('ulasan.index')
+            ->with('success','Analisis berhasil');
+    }
 }

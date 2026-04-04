@@ -12,7 +12,7 @@ class HasilSentimen extends Model
     protected $table = 'hasil_sentimen';
 
     protected $fillable = [
-        'nama_wisata',
+        'wisata',
         'ulasan',
         'sentimen'
     ];

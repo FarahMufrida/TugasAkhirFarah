@@ -10,16 +10,16 @@ class AnalisisController extends Controller
     public function index(Request $request)
     {
         // Dropdown list destinasi unik
-        $destinasiList = HasilAnalisis::select('nama_wisata')
+        $wisataList = HasilAnalisis::select('wisata')
             ->distinct()
-            ->pluck('nama_wisata');
+            ->pluck('wisata');
 
         // Query utama tabel
         $query = HasilAnalisis::query();
 
         // Filter kalau user pilih destinasi tertentu
-        if ($request->filled('destinasi')) {
-            $query->where('nama_wisata', $request->destinasi);
+        if ($request->filled('wisata')) {
+            $query->where('wisata', $request->wisata);
         }
 
         // Data hasil analisis (pakai paginate biar rapi)
@@ -27,7 +27,7 @@ class AnalisisController extends Controller
 
         return view('analisis.index', compact(
             'hasil',
-            'destinasiList'
+            'wisataList'
         ));
     }
 }

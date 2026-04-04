@@ -13,7 +13,7 @@ return new class extends Migration
 {
     Schema::create('hasil_analisis', function (Blueprint $table) {
         $table->id();
-        $table->string('nama_wisata');
+        $table->string('wisata');
         $table->text('ulasan_terolah');
         $table->string('sentimen');
         $table->float('probabilitas');

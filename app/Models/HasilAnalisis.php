@@ -12,7 +12,7 @@ class HasilAnalisis extends Model
     protected $table = 'hasil_analisis';
 
     protected $fillable = [
-        'nama_wisata',
+        'wisata',
         'ulasan_terolah',
         'sentimen',
         'probabilitas'

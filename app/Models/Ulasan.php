@@ -12,7 +12,7 @@ class Ulasan extends Model
     protected $table = 'ulasan';
 
     protected $fillable = [
-        'nama_wisata',
+        'wisata',
         'reviewer',
         'rating',
         'ulasan',

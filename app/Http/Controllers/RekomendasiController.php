@@ -10,16 +10,16 @@ class RekomendasiController extends Controller
     public function index(Request $request)
     {
         // dropdown destinasi unik
-        $destinasiList = HasilAnalisis::select('nama_wisata')
+        $destinasiList = HasilAnalisis::select('wisata')
             ->distinct()
-            ->pluck('nama_wisata');
+            ->pluck('scraping_pipeline.py');
 
         // query utama
         $query = HasilAnalisis::query();
 
         // filter destinasi jika dipilih
         if ($request->filled('destinasi')) {
-            $query->where('nama_wisata', $request->destinasi);
+            $query->where('wisata', $request->destinasi);
         }
 
         // ambil ulasan negatif

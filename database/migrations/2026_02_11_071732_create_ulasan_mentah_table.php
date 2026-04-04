@@ -13,7 +13,7 @@ return new class extends Migration
 {
     Schema::create('ulasan_mentah', function (Blueprint $table) {
         $table->id();
-        $table->string('nama_wisata');
+        $table->string('wisata');
         $table->string('reviewer_name')->nullable();
         $table->integer('rating')->nullable();
         $table->text('ulasan');

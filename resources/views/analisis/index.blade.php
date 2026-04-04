@@ -12,16 +12,16 @@
 
         <!-- Dropdown Filter -->
         <form method="GET" action="{{ route('analisis.index') }}">
-    <select name="destinasi"
+    <select name="wisata"
         onchange="this.form.submit()"
         class="bg-white border border-gray-300 text-sm rounded-lg px-4 py-2 shadow-sm
                focus:ring-2 focus:ring-blue-400 focus:outline-none">
 
         <option value="">Semua Destinasi</option>
 
-                 @foreach($destinasiList as $dest)
+                 @foreach($wisataList as $dest)
             <option value="{{ $dest }}"
-                {{ request('destinasi') == $dest ? 'selected' : '' }}>
+                {{ request('wisata') == $dest ? 'selected' : '' }}>
                 {{ $dest }}
             </option>
          @endforeach
@@ -41,7 +41,7 @@
             <table class="w-full text-sm text-left">
                 <thead>
                     <tr class="bg-gray-100 text-gray-600">
-                        <th class="px-4 py-3">Destinasi</th>
+                        <th class="px-4 py-3">wisata</th>
                         <th class="px-4 py-3">Ulasan Terolah</th>
                         <th class="px-4 py-3">Sentimen</th>
                         <th class="px-4 py-3">Probabilitas</th>
@@ -54,7 +54,7 @@
 
                             <!-- Destinasi -->
                             <td class="px-4 py-3 font-medium">
-                                {{ $row->nama_wisata }}
+                                {{ $row->wisata }}
                             </td>
 
                             <!-- Ulasan -->
