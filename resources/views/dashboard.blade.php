@@ -2,145 +2,145 @@
 
 @section('content')
 
-<div class="max-w-6xl mx-auto space-y-8">
+<div class="max-w-7xl mx-auto">
 
-    <!-- HEADER -->
-    <div class="flex justify-between items-center">
-        <h2 class="text-3xl font-bold text-gray-800">Data Ulasan</h2>
+    {{-- Header --}}
+    <div class="flex justify-between items-start mb-8">
+    <div>
+        <h2 class="text-2xl font-semibold text-gray-800">
+            Dashboard
+        </h2>
 
-        <select id="filterWisata" class="border rounded px-3 py-2 text-sm">
+        <!-- <p class="text-sm text-gray-500 mt-1">
+            Terakhir diperbarui: 27 Februari 2026, 22:45
+        </p>
+
+        <p class="text-xs text-gray-400">
+            Periode Data: Februari 2026
+        </p> -->
+    </div>
+    
+     <!-- Filter Destinasi -->
+    <form method="GET" action="" class="ml-4">
+        <select name="destinasi"
+            class="bg-white border border-gray-300 text-sm rounded-lg px-4 py-2 shadow-sm
+                   focus:ring-2 focus:ring-blue-400 focus:outline-none">
+
             <option value="">Semua Destinasi</option>
-            <option value="Pantai Papuma" {{ request('wisata')=='Pantai Papuma'?'selected':'' }}>Pantai Papuma</option>
-            <option value="Pantai Watu Ulo" {{ request('wisata')=='Pantai Watu Ulo'?'selected':'' }}>Pantai Watu Ulo</option>
-            <option value="Teluk Love (Payangan)" {{ request('wisata')=='Teluk Love (Payangan)'?'selected':'' }}>Teluk Love</option>
-            <option value="Kebun Teh Gunung Gambir" {{ request('wisata')=='Kebun Teh Gunung Gambir'?'selected':'' }}>Kebun Teh Gunung Gambir</option>
+            <option value="papuma">Pantai Papuma</option>
+            <option value="watuulo">Pantai Watu Ulo</option>
+            <option value="teluklove">Teluk Love (Payangan)</option>
+            <option value="gununggambir">Kebun Teh Gunung Gambir </option>
+
         </select>
+    </form>
     </div>
 
-    <script>
-    document.getElementById("filterWisata").addEventListener("change", function () {
-        window.location.href = "/ulasan?wisata=" + encodeURIComponent(this.value);
-    });
-    </script>
+    {{-- Statistik Cards --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
 
-    <!-- BUTTON -->
-    <form action="{{ route('ulasan.ambil') }}" method="POST">
-        @csrf
-        <button class="bg-blue-600 text-white px-5 py-2 rounded">Ambil Data Terbaru</button>
-    </form>
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-gray-500 text-sm">Total Ulasan</p>
+            <h3 class="text-2xl font-bold mt-2 text-gray-900">
+                {{ $stats['total'] }}
+            </h3>
+        </div>
 
-    <!-- ================= TABLE ================= -->
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-gray-500 text-sm">Sentimen Positif</p>
+            <h3 class="text-2xl font-bold mt-2 text-green-600">
+                {{ $stats['positif_persen'] }}%
+            </h3>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-gray-500 text-sm">Sentimen Negatif</p>
+            <h3 class="text-2xl font-bold mt-2 text-red-600">
+                {{ $stats['negatif_persen'] }}%
+            </h3>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-5">
+            <p class="text-gray-500 text-sm">Sentimen Netral</p>
+            <h3 class="text-2xl font-bold mt-2 text-yellow-500">
+                {{ $stats['netral_persen'] }}%
+            </h3>
+        </div>
+
+    </div>
+
+ {{-- Chart Section --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+    <!-- Pie Chart -->
     <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold mb-4 text-gray-700">
+            Distribusi Sentimen
+        </h3>
+        <div class="h-[280px] flex justify-center items-center">
+            <canvas id="pieChart"></canvas>
+        </div>
+    </div>
 
-        <h3 class="font-semibold mb-4">Data Ulasan Mentah</h3>
+    <!-- Bar Chart -->
+    <div class="bg-white rounded-xl shadow p-6">
+        <h3 class="font-semibold mb-4 text-gray-700">
+            Sentimen per Destinasi
+        </h3>
+        <div class="h-[280px]">
+            <canvas id="barChart"></canvas>
+        </div>
+    </div>
 
-        <div class="border rounded overflow-hidden">
+</div> {{-- TUTUP GRID CHART --}}
 
-            <!-- HEADER -->
-            <table class="w-full table-fixed text-sm">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th class="px-4 py-3 w-1/4">Wisata</th>
-                        <th class="px-4 py-3 w-1/6">Rating</th>
-                        <th class="px-4 py-3 w-2/4">Ulasan</th>
-                        <th class="px-4 py-3 w-1/6">Tanggal</th>
-                    </tr>
-                </thead>
-            </table>
 
-            <!-- BODY SCROLL -->
-            <div class="max-h-[300px] overflow-y-auto">
-                <table class="w-full table-fixed text-sm">
-                    <tbody>
-                        @forelse($mentah as $item)
-                        <tr class="border-b hover:bg-gray-50">
-                            <td class="px-4 py-2">{{ $item->wisata }}</td>
-                            <td class="px-4 py-2">{{ $item->rating }}</td>
-                            <td class="px-4 py-2 break-words line-clamp-3">
-                                {{ $item->ulasan }}
-                            </td>
-                            <td class="px-4 py-2">{{ $item->tanggal }}</td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="4" class="text-center py-4 text-gray-400">
-                                Tidak ada data
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+{{-- Section Bawah --}}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+    <!-- Total Data per Destinasi -->
+    <div class="bg-white rounded-xl shadow p-6 h-[320px]">
+        <h3 class="font-semibold mb-6 text-gray-700">
+            Total Data per Destinasi
+        </h3>
+
+        <div class="space-y-4 text-sm text-gray-600">
+            <div class="flex justify-between border-b pb-3">
+                <span>Pantai Papuma</span>
+                <span class="font-semibold text-gray-800">120 ulasan</span>
             </div>
-
+            <div class="flex justify-between border-b pb-3">
+                <span>Pantai Watu Ulo</span>
+                <span class="font-semibold text-gray-800">85 ulasan</span>
+            </div>
+            <div class="flex justify-between border-b pb-3">
+                <span>Teluk Love (Payangan)</span>
+                <span class="font-semibold text-gray-800">95 ulasan</span>
+            </div>
+            <div class="flex justify-between">
+                <span>Kebun Teh Gunung Gambir</span>
+                <span class="font-semibold text-gray-800">60 ulasan</span>
+            </div>
         </div>
-
-        <!-- PAGINATION SIMPLE -->
-        <div class="flex justify-center mt-6 gap-2 text-sm">
-
-            @if($mentah->onFirstPage())
-                <span class="text-gray-400">Prev</span>
-            @else
-                <a href="{{ $mentah->previousPageUrl() }}">Prev</a>
-            @endif
-
-            @for ($i = 1; $i <= $mentah->lastPage(); $i++)
-                @if ($i == $mentah->currentPage())
-                    <span class="font-bold text-blue-600">{{ $i }}</span>
-                @elseif ($i <= 5 || $i == $mentah->lastPage())
-                    <a href="{{ $mentah->url($i) }}">{{ $i }}</a>
-                @elseif ($i == 6)
-                    <span>...</span>
-                @endif
-            @endfor
-
-            @if($mentah->hasMorePages())
-                <a href="{{ $mentah->nextPageUrl() }}">Next</a>
-            @else
-                <span class="text-gray-400">Next</span>
-            @endif
-
-        </div>
-
     </div>
 
-    <!-- BUTTON ANALISIS -->
-    <form action="{{ route('ulasan.analisis') }}" method="POST">
-        @csrf
-        <button class="bg-green-600 text-white px-5 py-2 rounded">Proses Analisis</button>
-    </form>
+    <!-- WORD CLOUD -->
+    <div class="bg-white rounded-xl shadow p-6 h-[320px]">
+        <h3 class="font-semibold mb-6 text-gray-700">
+            Word Cloud
+        </h3>
 
-    <!-- PREPROCESSING -->
-    <div class="bg-white rounded-xl shadow p-6">
-        <h3 class="font-semibold mb-4">Hasil Preprocessing</h3>
-
-        <div class="max-h-[300px] overflow-y-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-100 sticky top-0">
-                    <tr>
-                        <th class="px-4 py-2">Wisata</th>
-                        <th class="px-4 py-2">Ulasan Mentah</th>
-                        <th class="px-4 py-2">Ulasan Bersih</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($preprocessing as $row)
-                    <tr class="border-b">
-                        <td class="px-4 py-2">{{ $row->wisata }}</td>
-                        <td class="px-4 py-2">{{ $row->ulasan_asli }}</td>
-                        <td class="px-4 py-2">{{ $row->stemming }}</td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="3" class="text-center py-4 text-gray-400">
-                            Belum ada data
-                        </td>
-                    </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+        <div id="wordCloud" class="w-full h-[240px]"></div>
     </div>
 
 </div>
+
+</div>
+
+
+</div>
+</div>
+
+
 
 @endsection
