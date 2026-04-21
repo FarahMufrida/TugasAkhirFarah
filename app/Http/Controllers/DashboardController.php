@@ -12,89 +12,101 @@ class DashboardController extends Controller
         $wisata = $request->wisata;
 
         // =============================
-        // TOTAL DATA
+        // TOTAL ULASAN (DARI TABEL ULASAN)
         // =============================
-        $total = DB::table('hasil_analisis')
-            ->when($wisata, function ($q) use ($wisata) {
+        $totalUlasan = DB::table('ulasan')
+            ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
                 $q->where('wisata', $wisata);
             })
             ->count();
 
         // =============================
-        // HITUNG SENTIMEN
+        // CEK ADA ANALISIS ATAU BELUM
+        // =============================
+        $hasAnalisis = DB::table('hasil_analisis')->count() > 0;
+
+        // =============================
+        // HITUNG SENTIMEN (DARI HASIL ANALISIS)
         // =============================
         $positif = DB::table('hasil_analisis')
             ->where('sentimen', 'Positif')
-            ->when($wisata, function ($q) use ($wisata) {
+            ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
                 $q->where('wisata', $wisata);
             })
             ->count();
 
         $negatif = DB::table('hasil_analisis')
             ->where('sentimen', 'Negatif')
-            ->when($wisata, function ($q) use ($wisata) {
+            ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
                 $q->where('wisata', $wisata);
             })
             ->count();
 
         $netral = DB::table('hasil_analisis')
             ->where('sentimen', 'Netral')
-            ->when($wisata, function ($q) use ($wisata) {
+            ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
                 $q->where('wisata', $wisata);
             })
             ->count();
 
         // =============================
-        // PERSENTASE
+        // PERSENTASE SENTIMEN
         // =============================
+        $totalSentimen = $positif + $negatif + $netral;
+
         $stats = [
-            'total' => $total,
-            'positif_persen' => $total ? round(($positif / $total) * 100) : 0,
-            'negatif_persen' => $total ? round(($negatif / $total) * 100) : 0,
-            'netral_persen' => $total ? round(($netral / $total) * 100) : 0,
+            'total' => $totalUlasan,
+            'positif_persen' => $totalSentimen > 0 ? round(($positif / $totalSentimen) * 100) : 0,
+            'negatif_persen' => $totalSentimen > 0 ? round(($negatif / $totalSentimen) * 100) : 0,
+            'netral_persen' => $totalSentimen > 0 ? round(($netral / $totalSentimen) * 100) : 0,
         ];
 
         // =============================
         // GRAFIK PIE (Distribusi Sentimen)
         // =============================
-        $chartSentimen = DB::table('hasil_analisis')
-            ->select('sentimen', DB::raw('count(*) as total'))
-            ->when($wisata, function ($q) use ($wisata) {
-                $q->where('wisata', $wisata);
-            })
-            ->groupBy('sentimen')
-            ->get();
+        $chartSentimen = $hasAnalisis
+    ? DB::table('hasil_analisis')
+        ->select('sentimen', DB::raw('count(*) as total'))
+        ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
+            $q->where('wisata', $wisata);
+        })
+        ->groupBy('sentimen')
+        ->orderByRaw("FIELD(sentimen, 'Positif', 'Negatif', 'Netral')") // 🔥 INI KUNCINYA
+        ->get()
+    : collect();
 
         // =============================
-        // GRAFIK BAR (per destinasi)
+        // GRAFIK BAR (Sentimen per Destinasi)
         // =============================
-        $chartDestinasi = DB::table('hasil_analisis')
-            ->select(
-                'wisata',
-                DB::raw("SUM(CASE WHEN sentimen = 'Positif' THEN 1 ELSE 0 END) as positif"),
-                DB::raw("SUM(CASE WHEN sentimen = 'Negatif' THEN 1 ELSE 0 END) as negatif"),
-                DB::raw("SUM(CASE WHEN sentimen = 'Netral' THEN 1 ELSE 0 END) as netral")
-            )
+        $chartDestinasi = $hasAnalisis
+    ? DB::table('hasil_analisis')
+        ->select(
+            'wisata',
+            DB::raw("SUM(CASE WHEN sentimen = 'Positif' THEN 1 ELSE 0 END) as positif"),
+            DB::raw("SUM(CASE WHEN sentimen = 'Negatif' THEN 1 ELSE 0 END) as negatif"),
+            DB::raw("SUM(CASE WHEN sentimen = 'Netral' THEN 1 ELSE 0 END) as netral")
+        )
+        ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
+            $q->where('wisata', $wisata);
+        })
+        ->groupBy('wisata')
+    
+        ->get()
+    : collect();
+
+        // =============================
+        // TOTAL DATA PER DESTINASI (DARI ULASAN)
+        // =============================
+        $totalPerWisata = DB::table('ulasan')
+            ->select('wisata', DB::raw('count(*) as total'))
             ->groupBy('wisata')
             ->get();
 
         // =============================
-        // TOTAL DATA PER DESTINASI
+        // WORD CLOUD (DARI PREPROCESSING)
         // =============================
-        $totalPerWisata = DB::table('hasil_analisis')
-        ->select('wisata', DB::raw('count(*) as total'))
-        ->groupBy('wisata')
-        ->get()
-        ->toArray();
-
-        // =============================
-        // WORD CLOUD
-        // =============================
-        $texts = DB::table('preprocessing_data')
-            ->pluck('stemming')
-            ->toArray(); // 🔥 WAJIB
-
-        $allText = implode(' ', $texts);
+        $texts = DB::table('preprocessing_data')->pluck('stemming')->toArray();
+        $allText = count($texts) > 0 ? implode(' ', $texts) : '';
 
         // =============================
         // LAST UPDATE
@@ -109,7 +121,8 @@ class DashboardController extends Controller
             'chartDestinasi',
             'totalPerWisata',
             'allText',
-            'lastUpdate'
+            'lastUpdate',
+            'hasAnalisis'
         ));
     }
 }

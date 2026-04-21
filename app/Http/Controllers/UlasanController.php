@@ -25,7 +25,7 @@ class UlasanController extends Controller
         $mentah = $query->latest()->paginate(50)->withQueryString();
 
         // preprocessing
-        $preprocessing = PreprocessingData::latest()->paginate(50);
+        $preprocessing = PreprocessingData::latest()->paginate(30, ['*'], 'pre_page');
 
         return view('ulasan.index', compact('mentah', 'preprocessing'));
     }
@@ -41,14 +41,14 @@ class UlasanController extends Controller
             ->with('success','Data berhasil diambil');
     }
 
-    public function analisisData()
-    {
-        $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
-        $scriptPath = '"C:\\laragon\\www\\Sentara\\scraper\\preprocessing.py"';
+   public function analisisData()
+{
+    $pythonPath = '"C:\\Users\\Mufrida Farah\\AppData\\Local\\Programs\\Python\\Python312\\python.exe"';
+    $scriptPath = '"C:\\laragon\\www\\Sentara\\scraper\\preprocessing.py"';
 
-        shell_exec($pythonPath . " " . $scriptPath . " 2>&1");
+    $output = shell_exec($pythonPath . " " . $scriptPath . " 2>&1");
 
-        return redirect()->route('ulasan.index')
-            ->with('success','Analisis berhasil');
-    }
+    return redirect()->route('ulasan.index')
+        ->with('success','Analisis berhasil');
+}
 }

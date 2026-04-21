@@ -98,9 +98,46 @@
         </div>
 
         <!-- PAGINATION -->
-        <div class="mt-6">
-            {{ $hasil->links() }}
-        </div>
+       <div class="text-sm text-gray-500 mt-4 text-center">
+    Showing {{ $hasil->firstItem() }} to {{ $hasil->lastItem() }} 
+    of {{ $hasil->total() }} results
+</div>
+
+<div class="flex justify-center mt-3 items-center gap-2 text-sm">
+
+    {{-- PREV --}}
+    @if ($hasil->onFirstPage())
+        <span class="text-gray-400">‹</span>
+    @else
+        <a href="{{ $hasil->previousPageUrl() }}">‹</a>
+    @endif
+
+    @php
+        $start = max($hasil->currentPage() - 2, 1);
+        $end = min($hasil->currentPage() + 2, $hasil->lastPage());
+    @endphp
+
+    {{-- NUMBER --}}
+    @for ($i = $start; $i <= $end; $i++)
+        @if ($i == $hasil->currentPage())
+            <span class="px-3 py-1 bg-blue-600 text-white rounded-full">
+                {{ $i }}
+            </span>
+        @else
+            <a href="{{ $hasil->url($i) }}" class="px-2 hover:underline">
+                {{ $i }}
+            </a>
+        @endif
+    @endfor
+
+    {{-- NEXT --}}
+    @if ($hasil->hasMorePages())
+        <a href="{{ $hasil->nextPageUrl() }}">›</a>
+    @else
+        <span class="text-gray-400">›</span>
+    @endif
+
+</div>
 
     </div>
 

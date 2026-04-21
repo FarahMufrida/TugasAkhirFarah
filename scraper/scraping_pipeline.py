@@ -17,7 +17,8 @@ cursor = conn.cursor()
 # CHROME
 options = Options()
 options.add_argument("--start-maximized")
-
+options.add_argument('--lang=id')
+Options.add_argument("accept-language-id-ID,id")
 driver = webdriver.Chrome(options=options)
 
 destinations = {

@@ -12,7 +12,7 @@ class RekomendasiController extends Controller
         // dropdown destinasi unik
         $destinasiList = HasilAnalisis::select('wisata')
             ->distinct()
-            ->pluck('scraping_pipeline.py');
+            ->pluck('wisata');
 
         // query utama
         $query = HasilAnalisis::query();

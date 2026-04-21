@@ -12,7 +12,7 @@
             <option value="">Semua Destinasi</option>
             <option value="Pantai Papuma" {{ request('wisata')=='Pantai Papuma'?'selected':'' }}>Pantai Papuma</option>
             <option value="Pantai Watu Ulo" {{ request('wisata')=='Pantai Watu Ulo'?'selected':'' }}>Pantai Watu Ulo</option>
-            <option value="Teluk Love (Payangan)" {{ request('wisata')=='Teluk Love (Payangan)'?'selected':'' }}>Teluk Love</option>
+            <option value="Teluk Love" {{ request('wisata')=='Teluk Love'?'selected':'' }}>Teluk Love</option>
             <option value="Kebun Teh Gunung Gambir" {{ request('wisata')=='Kebun Teh Gunung Gambir'?'selected':'' }}>Kebun Teh Gunung Gambir</option>
         </select>
     </div>
@@ -155,82 +155,80 @@
     <div class="bg-white rounded-xl shadow p-6">
         <h3 class="font-semibold mb-4">Hasil Preprocessing</h3>
 
-        <div class="max-h-[300px] overflow-y-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-100 sticky top-0">
-                    <tr>
-                        <th class="px-4 py-2">Wisata</th>
-                        <th class="px-4 py-2">Ulasan Mentah</th>
-                        <th class="px-4 py-2">Ulasan Bersih</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($preprocessing as $row)
-                    <tr class="border-b">
-                        <td class="px-4 py-2">{{ $row->wisata }}</td>
-                        <td class="px-4 py-2">{{ $row->ulasan_asli }}</td>
-                        <td class="px-4 py-2">{{ $row->stemming }}</td>
-                    </tr>
-                    @empty
-                    <tr>
-                        <td colspan="3" class="text-center py-4 text-gray-400">
-                            Belum ada data
-                        </td>
-                    </tr>
-                    <div class="flex justify-center mt-4 text-sm">
-        
-                    <!-- INFO -->
-                        <div class="text-sm text-gray-500 mt-4 text-center">
-                            Showing {{ $preprocessing->firstItem() }} to {{ $preprocessing->lastItem() }} 
-                            of {{ $preprocessing->total() }} results
-                        </div>
+   <div id="preprocessingTabel">
 
-                        <!-- PAGINATION -->
-                        <div class="flex justify-center mt-6 items-center gap-2 text-sm">
+    <!-- TABLE -->
+    <div class="max-h-[300px] overflow-y-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-100 sticky top-0">
+                <tr>
+                    <th class="px-4 py-2">Wisata</th>
+                    <th class="px-4 py-2">Ulasan Mentah</th>
+                    <th class="px-4 py-2">Ulasan Bersih</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($preprocessing as $row)
+                <tr class="border-b">
+                    <td class="px-4 py-2">{{ $row->wisata }}</td>
+                    <td class="px-4 py-2">{{ $row->ulasan_asli }}</td>
+                    <td class="px-4 py-2">{{ $row->stemming }}</td>
+                </tr>
+                @empty
+                <tr>
+                    <td colspan="3" class="text-center py-4 text-gray-400">
+                        Belum ada data
+                    </td>
+                </tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
 
-                    {{-- FIRST --}}
-                    @if ($preprocessing->currentPage() > 1)
-                        <a href="{{ $preprocessing->url(1) }}">«</a>
-                    @endif
+    <!-- INFO -->
+    <div class="text-sm text-gray-500 mt-4 text-center">
+        Showing {{ $preprocessing->firstItem() }} to {{ $preprocessing->lastItem() }} 
+        of {{ $preprocessing->total() }} results
+    </div>
 
-                    {{-- PREV --}}
-                    @if ($preprocessing->onFirstPage())
-                        <span class="text-gray-400">‹</span>
-                    @else
-                        <a href="{{ $preprocessing->previousPageUrl() }}">‹</a>
-                    @endif
+    <!-- PAGINATION -->
+    <div class="flex justify-center mt-4 items-center gap-2 text-sm">
 
-                    @php
-                        $start = max($preprocessing->currentPage() - 2, 1);
-                        $end = min($preprocessing->currentPage() + 2, $preprocessing->lastPage());
-                    @endphp
+        {{-- PREV --}}
+        @if ($preprocessing->onFirstPage())
+            <span class="text-gray-400">‹</span>
+        @else
+            <a href="{{ $preprocessing->previousPageUrl() }}">‹</a>
+        @endif
 
-                    {{-- NUMBER DINAMIS --}}
-                    @for ($i = $start; $i <= $end; $i++)
-                        @if ($i == $preprocessing->currentPage())
-                            <span class="px-3 py-1 bg-blue-600 text-white rounded-full">{{ $i }}</span>
-                        @else
-                            <a href="{{ $preprocessing->url($i) }}" class="px-3 py-1 hover:underline">
-                                {{ $i }}
-                            </a>
-                        @endif
-                    @endfor
+        @php
+            $start = max($preprocessing->currentPage() - 2, 1);
+            $end = min($preprocessing->currentPage() + 2, $preprocessing->lastPage());
+        @endphp
 
-                    {{-- NEXT --}}
-                    @if ($preprocessing->hasMorePages())
-                        <a href="{{ $preprocessing->nextPageUrl() }}">›</a>
-                    @else
-                        <span class="text-gray-400">›</span>
-                    @endif
+        {{-- NUMBER --}}
+        @for ($i = $start; $i <= $end; $i++)
+            @if ($i == $preprocessing->currentPage())
+                <span class="px-3 py-1 bg-blue-600 text-white rounded-full">
+                    {{ $i }}
+                </span>
+            @else
+                <a href="{{ $preprocessing->url($i) }}" class="px-3 py-1 hover:underline">
+                    {{ $i }}
+                </a>
+            @endif
+        @endfor
 
-                    {{-- LAST --}}
-                    @if ($preprocessing->currentPage() < $preprocessing->lastPage())
-                        <a href="{{ $preprocessing->url($preprocessing->lastPage()) }}">»</a>
-                    @endif
+        {{-- NEXT --}}
+        @if ($preprocessing->hasMorePages())
+            <a href="{{ $preprocessing->nextPageUrl() }}">›</a>
+        @else
+            <span class="text-gray-400">›</span>
+        @endif
 
-                    </div>
+    </div>
 
-                    </div>
+</div>
                     <script>
                         document.getElementById("filterWisata").addEventListener("change", function () {
                             let wisata = this.value;
@@ -244,12 +242,31 @@
                                 });
                         });
                         </script>
-                    @endforelse
+                    
                 </tbody>
             </table>
         </div>
     </div>
+    </div>
 
 </div>
 
+<script>
+document.addEventListener("click", function(e) {
+    if(e.target.closest("#preprocessingTable a")) {
+        e.preventDefault();
+
+        let url = e.target.closest("a").getAttribute("href");
+
+        fetch(url)
+            .then(res => res.text())
+            .then(html => {
+                let doc = new DOMParser().parseFromString(html, 'text/html');
+                let newContent = doc.querySelector("#preprocessingTable").innerHTML;
+
+                document.querySelector("#preprocessingTable").innerHTML = newContent;
+            });
+    }
+});
+</script>
 @endsection

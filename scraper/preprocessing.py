@@ -1,8 +1,20 @@
+import pandas as pd
 import mysql.connector
 import re
-import math
-from collections import Counter
+import string
+import matplotlib.pyplot as plt
+from sklearn.utils import resample
+
+
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
+from Sastrawi.StopWordRemover.StopWordRemoverFactory import StopWordRemoverFactory
+
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, classification_report
+
+from wordcloud import WordCloud
 
 # =============================
 # DATABASE
@@ -14,130 +26,161 @@ conn = mysql.connector.connect(
     password=""
 )
 
-cursor = conn.cursor()
+query = "SELECT wisata, ulasan, rating FROM ulasan"
+df = pd.read_sql(query, conn)
+
+print("Total data:", len(df))
 
 # =============================
-# STEMMER
+# STEMMER & STOPWORD
 # =============================
 factory = StemmerFactory()
 stemmer = factory.create_stemmer()
 
-# =============================
-# DATA TRAINING
-# =============================
-data_train = [
-    ("bagus bersih indah nyaman sejuk", "positif"),
-    ("indah nyaman segar bagus", "positif"),
-    ("kotor jelek rusak mahal sempit", "negatif"),
-    ("jalan rusak sempit mahal", "negatif")
-]
+factory_stop = StopWordRemoverFactory()
+stopword = factory_stop.create_stop_word_remover()
 
 # =============================
-# TRAIN NAIVE BAYES
+# PREPROCESSING
 # =============================
-def train_nb(data):
-    word_counts = {"positif": Counter(), "negatif": Counter()}
-    class_counts = {"positif": 0, "negatif": 0}
-    total_words = {"positif": 0, "negatif": 0}
+# kamus slang
+slang_dict = {
+    "gk": "tidak",
+    "ga": "tidak",
+    "bgt": "banget",
+    "tp": "tapi",
+    "dr": "dari",
+    "yg": "yang"
+}
 
-    for text, label in data:
-        words = text.split()
-        class_counts[label] += 1
-        word_counts[label].update(words)
-        total_words[label] += len(words)
-
-    return word_counts, class_counts, total_words
-
-word_counts, class_counts, total_words = train_nb(data_train)
-
-# =============================
-# PREDICT
-# =============================
-def predict_nb(text):
+def normalize_slang(text):
     words = text.split()
+    return ' '.join([slang_dict.get(w, w) for w in words])
 
-    vocab = set(word_counts["positif"]).union(set(word_counts["negatif"]))
 
-    log_pos = math.log(class_counts["positif"] / sum(class_counts.values()))
-    log_neg = math.log(class_counts["negatif"] / sum(class_counts.values()))
+def preprocess(text):
+    text = str(text)
+    text = text.lower()
 
-    for word in words:
-        prob_pos = (word_counts["positif"][word] + 1) / (total_words["positif"] + len(vocab))
-        prob_neg = (word_counts["negatif"][word] + 1) / (total_words["negatif"] + len(vocab))
+    # cleaning
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
 
-        log_pos += math.log(prob_pos)
-        log_neg += math.log(prob_neg)
+    # 🔥 TAMBAHKAN DI SINI
+    text = normalize_slang(text)
 
-    if log_pos > log_neg:
-        return "Positif", log_pos
+    # stopword
+    text = stopword.remove(text)
+
+    # stemming
+    text = stemmer.stem(text)
+
+    return text
+
+def preprocess(text):
+    text = str(text)
+    text = text.lower()
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    text = stopword.remove(text)
+    text = stemmer.stem(text)
+    return text
+
+df['clean_text'] = df['ulasan'].apply(preprocess)
+
+# =============================
+# LABELING
+# =============================
+def label_sentimen(rating):
+    if rating >= 4:
+        return "positif"
+    elif rating == 3:
+        return "negatif"   # 🔥 ubah ini
     else:
-        return "Negatif", log_neg
+        return "negatif"
+
+df['label'] = df['rating'].apply(label_sentimen)
+
+print("\nDistribusi Label:")
+print(df['label'].value_counts())
+
 
 # =============================
-# HAPUS DATA LAMA (PENTING!)
+# SPLIT DATA
 # =============================
+X_train, X_test, y_train, y_test = train_test_split(
+    df['clean_text'],
+    df['label'],
+    test_size=0.2,
+    random_state=42
+)
+
+# =============================
+# TF-IDF
+# =============================
+vectorizer = TfidfVectorizer()
+X_train_tfidf = vectorizer.fit_transform(X_train)
+X_test_tfidf = vectorizer.transform(X_test)
+
+# =============================
+# MODEL NAIVE BAYES
+# =============================
+model = MultinomialNB()
+model.fit(X_train_tfidf, y_train)
+
+# =============================
+# EVALUASI
+# =============================
+y_pred = model.predict(X_test_tfidf)
+
+print("\nAccuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# =============================
+# PREDIKSI SEMUA DATA
+# =============================
+print("\nMulai prediksi semua data...")
+
+X_all_tfidf = vectorizer.transform(df['clean_text'])
+df['prediksi'] = model.predict(X_all_tfidf)
+
+# =============================
+# SIMPAN KE DATABASE
+# =============================
+cursor = conn.cursor()
+
 cursor.execute("DELETE FROM preprocessing_data")
 cursor.execute("DELETE FROM hasil_analisis")
 
-# =============================
-# AMBIL DATA
-# =============================
-cursor.execute("SELECT wisata, ulasan FROM ulasan")
-data = cursor.fetchall()
-
-print("Total ulasan:", len(data))
-
-# =============================
-# PROSES
-# =============================
-for row in data:
-
-    wisata = row[0]
-    text = row[1]
-
-    if not text:
-        continue
-
-    # CLEANING
-    text_clean = re.sub(r'[^a-zA-Z\s]', '', text)
-    text_clean = text_clean.lower()
-
-    # TOKENIZING 
-    tokens = text_clean.split()
-    text_token = ' '.join(tokens)
-
-    # STEMMING
-    text_stem = stemmer.stem(text_clean)
-
-    # PREDIKSI
-    sentimen, probabilitas = predict_nb(text_stem)
-
-    # INSERT PREPROCESSING
-    cursor.execute("""
-        INSERT INTO preprocessing_data
-        (wisata, ulasan_asli, cleaning, tokenizing, stemming)
-        VALUES (%s,%s,%s,%s,%s)
-        """,
-        (
-            wisata,
-            text,
-            text_clean,
-            text_token,
-            text_stem
+for i, row in df.iterrows():
+    try:
+        # preprocessing
+        cursor.execute("""
+            INSERT INTO preprocessing_data 
+            (wisata, ulasan_asli, cleaning, tokenizing, stemming, final_text)
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            row['wisata'],
+            row['ulasan'],
+            row['clean_text'],
+            row['clean_text'],
+            row['clean_text'],
+            row['clean_text']
         ))
 
-    # INSERT HASIL ANALISIS
-    cursor.execute("""
-    INSERT INTO hasil_analisis
-    (wisata, ulasan_terolah, hasil_preprocessing, sentimen, probabilitas)
-    VALUES (%s,%s,%s,%s,%s)
-    """, (wisata, text, text_stem, sentimen, probabilitas))
+        # hasil analisis
+        cursor.execute("""
+            INSERT INTO hasil_analisis 
+            (wisata, ulasan_terolah, hasil_preprocessing, sentimen, probabilitas)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            row['wisata'],
+            row['clean_text'],
+            row['clean_text'],
+            row['prediksi'],
+            0.0
+        ))
 
-# =============================
-# COMMIT SEKALI SAJA
-# =============================
+    except Exception as e:
+        print("Error insert:", e)
+
 conn.commit()
-
-print(" Preprocessing & Analisis Sentimen selesai")
-
-conn.close()
+print(" Data berhasil disimpan")
