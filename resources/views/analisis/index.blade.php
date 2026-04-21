@@ -1,146 +1,259 @@
-@extends('layouts.sentara')
+<div class="space-y-6">
 
-@section('content')
-
-<div class="max-w-6xl mx-auto space-y-8">
-
-    <!-- HEADER -->
+    {{-- ================= HEADER ================= --}}
     <div class="flex justify-between items-center">
-        <h2 class="text-3xl font-bold text-gray-800">
-            Hasil Analisis Sentimen
-        </h2>
-
-        <!-- Dropdown Filter -->
-        <form method="GET" action="{{ route('analisis.index') }}">
-    <select name="wisata"
-        onchange="this.form.submit()"
-        class="bg-white border border-gray-300 text-sm rounded-lg px-4 py-2 shadow-sm
-               focus:ring-2 focus:ring-blue-400 focus:outline-none">
-
-        <option value="">Semua Destinasi</option>
-
-                 @foreach($wisataList as $dest)
-            <option value="{{ $dest }}"
-                {{ request('wisata') == $dest ? 'selected' : '' }}>
-                {{ $dest }}
-            </option>
-         @endforeach
-        </select>
-    </form>
+        <div>
+            <h2 class="text-2xl font-bold">Hasil Analisis Sentimen</h2>
+            <p class="text-gray-500 text-sm">
+                Berikut adalah hasil evaluasi model dan detail analisis sentimen terhadap ulasan wisata.
+            </p>
+        </div>
+        <!-- <div class="text-sm text-gray-500">
+            {{ now()->format('d F Y - H:i') }}
+        </div> -->
     </div>
 
+    {{-- ================= METRICS ================= --}}
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
 
-    <!-- TABLE CARD -->
-    <div class="bg-white rounded-xl shadow p-6">
+        <div class="bg-white p-5 rounded-xl shadow">
+            <p class="text-gray-500 text-sm">Precision</p>
+            <h3 class="text-2xl font-bold text-blue-600">
+                {{ $evaluasi->precision ?? 0 }}
+            </h3>
+        </div>
 
-        <h3 class="text-lg font-semibold text-gray-700 mb-4">
-            Data Hasil Analisis
-        </h3>
+        <div class="bg-white p-5 rounded-xl shadow">
+            <p class="text-gray-500 text-sm">Recall</p>
+            <h3 class="text-2xl font-bold text-green-600">
+                {{ $evaluasi->recall ?? 0 }}
+            </h3>
+        </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead>
-                    <tr class="bg-gray-100 text-gray-600">
-                        <th class="px-4 py-3">wisata</th>
-                        <th class="px-4 py-3">Ulasan Terolah</th>
-                        <th class="px-4 py-3">Sentimen</th>
-                        <th class="px-4 py-3">Probabilitas</th>
+        <div class="bg-white p-5 rounded-xl shadow">
+            <p class="text-gray-500 text-sm">F1 Score</p>
+            <h3 class="text-2xl font-bold text-purple-600">
+                {{ $evaluasi->f1_score ?? 0 }}
+            </h3>
+        </div>
+
+        <div class="bg-white p-5 rounded-xl shadow">
+            <p class="text-gray-500 text-sm">Akurasi</p>
+            <h3 class="text-2xl font-bold text-indigo-600">
+                {{ $evaluasi->accuracy ?? 0 }}
+            </h3>
+        </div>
+
+    </div>
+
+    {{-- ================= MATRIX + PERFORMA ================= --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {{-- CONFUSION MATRIX --}}
+        <div class="bg-white p-6 rounded-xl shadow">
+            <h3 class="font-semibold mb-4">Confusion Matrix</h3>
+
+            <table class="w-full text-center border rounded-lg overflow-hidden">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th></th>
+                        <th>Positif</th>
+                        <th>Negatif</th>
+                        <th>Netral</th>
                     </tr>
                 </thead>
-
                 <tbody>
-                    @forelse($hasil as $row)
-                        <tr class="border-b">
-
-                            <!-- Destinasi -->
-                            <td class="px-4 py-3 font-medium">
-                                {{ $row->wisata }}
-                            </td>
-
-                            <!-- Ulasan -->
-                            <td class="px-4 py-3 text-gray-700">
-                                {{ $row->ulasan_terolah }}
-                            </td>
-
-                            <!-- Badge Sentimen -->
-                            <td class="px-4 py-3">
-                                @if($row->sentimen == 'positif')
-                                    <span class="px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">
-                                        Positif
-                                    </span>
-                                @elseif($row->sentimen == 'negatif')
-                                    <span class="px-3 py-1 rounded-full bg-red-100 text-red-700 text-xs font-semibold">
-                                        Negatif
-                                    </span>
-                                @else
-                                    <span class="px-3 py-1 rounded-full bg-yellow-100 text-yellow-700 text-xs font-semibold">
-                                        Netral
-                                    </span>
-                                @endif
-                            </td>
-
-                            <!-- Probabilitas -->
-                            <td class="px-4 py-3 font-semibold text-gray-700">
-                                {{ number_format($row->probabilitas, 2) }}
-                            </td>
-
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="4" class="text-center py-6 text-gray-400">
-                                Belum ada hasil analisis sentimen.
-                            </td>
-                        </tr>
-                    @endforelse
+                    <tr>
+                        <th class="bg-gray-50">Positif</th>
+                        <td class="bg-green-100">{{ $evaluasi->tp ?? 0 }}</td>
+                        <td class="bg-red-100">{{ $evaluasi->fn ?? 0 }}</td>
+                        <td class="bg-yellow-100">0</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-gray-50">Negatif</th>
+                        <td class="bg-red-100">{{ $evaluasi->fp ?? 0 }}</td>
+                        <td class="bg-green-100">{{ $evaluasi->tn ?? 0 }}</td>
+                        <td class="bg-yellow-100">0</td>
+                    </tr>
+                    <tr>
+                        <th class="bg-gray-50">Netral</th>
+                        <td class="bg-yellow-100">0</td>
+                        <td class="bg-yellow-100">0</td>
+                        <td class="bg-green-100">0</td>
+                    </tr>
                 </tbody>
-
             </table>
         </div>
 
-        <!-- PAGINATION -->
-       <div class="text-sm text-gray-500 mt-4 text-center">
-    Showing {{ $hasil->firstItem() }} to {{ $hasil->lastItem() }} 
-    of {{ $hasil->total() }} results
-</div>
+        {{-- PERFORMA --}}
+        <div class="bg-white p-6 rounded-xl shadow">
+            <h3 class="font-semibold mb-4">Performa per Kelas</h3>
 
-<div class="flex justify-center mt-3 items-center gap-2 text-sm">
+            <table class="w-full text-sm border">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th>Kelas</th>
+                        <th>Precision</th>
+                        <th>Recall</th>
+                        <th>F1</th>
+                        <th>Support</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-green-600 font-semibold">Positif</td>
+                        <td>{{ $evaluasi->precision ?? 0 }}</td>
+                        <td>{{ $evaluasi->recall ?? 0 }}</td>
+                        <td>{{ $evaluasi->f1_score ?? 0 }}</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td class="text-red-600 font-semibold">Negatif</td>
+                        <td>{{ $evaluasi->precision ?? 0 }}</td>
+                        <td>{{ $evaluasi->recall ?? 0 }}</td>
+                        <td>{{ $evaluasi->f1_score ?? 0 }}</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td class="text-yellow-600 font-semibold">Netral</td>
+                        <td>{{ $evaluasi->precision ?? 0 }}</td>
+                        <td>{{ $evaluasi->recall ?? 0 }}</td>
+                        <td>{{ $evaluasi->f1_score ?? 0 }}</td>
+                        <td>-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    {{-- ================= FILTER ================= --}}
+  <form id="filter-form" class="flex items-center gap-3">
+
+    <input type="hidden" name="tab" value="analisis">
+
+    <select name="wisata" class="border rounded px-3 py-2">
+        <option value="">Semua Destinasi</option>
+
+        @foreach($destinasiList as $d)
+            <option value="{{ $d }}" {{ request('wisata') == $d ? 'selected' : '' }}>
+                {{ $d }}
+            </option>
+        @endforeach
+    </select>
+
+    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">
+        Filter
+    </button>
+
+</form>
+
+    {{-- ================= TABLE ================= --}}
+    <div class="bg-white rounded-xl shadow p-4">
+
+        <h3 class="font-semibold mb-4">Detail Hasil Analisis Sentimen</h3>
+
+        <table class="w-full text-sm">
+            <thead class="border-b text-left">
+                <tr>
+                    <th>No</th>
+                    <th>Wisata</th>
+                    <th>Ulasan</th>
+                    <th>Sentimen</th>
+                    <th>Probabilitas</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @forelse($hasil as $index => $item)
+                    <tr class="border-b">
+                        <td>{{ $loop->iteration }}</td>
+                        <td>{{ $item->wisata }}</td>
+                        <td>{{ Str::limit($item->ulasan_terolah, 80) }}</td>
+
+                        <td>
+                            <span class="
+                                px-2 py-1 rounded text-xs
+                                {{ $item->sentimen == 'Positif' ? 'bg-green-100 text-green-600' : '' }}
+                                {{ $item->sentimen == 'Negatif' ? 'bg-red-100 text-red-600' : '' }}
+                                {{ $item->sentimen == 'Netral' ? 'bg-yellow-100 text-yellow-600' : '' }}
+                            ">
+                                {{ $item->sentimen }}
+                            </span>
+                        </td>
+
+                        <td>{{ $item->probabilitas ?? '-' }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-gray-500">
+                            Tidak ada data
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+
+        {{-- PAGINATION --}}
+        <div class="mt-6 flex items-center justify-between text-sm text-gray-500">
+
+    {{-- INFO --}}
+    <div>
+        Menampilkan {{ $hasil->firstItem() }} - {{ $hasil->lastItem() }} 
+        dari {{ $hasil->total() }} data
+    </div>
+
+    {{-- PAGINATION --}}
+    {{-- PAGINATION --}}
+<div class="flex items-center gap-1">
 
     {{-- PREV --}}
     @if ($hasil->onFirstPage())
-        <span class="text-gray-400">‹</span>
+        <span class="px-3 py-1 rounded border text-gray-300">‹</span>
     @else
-        <a href="{{ $hasil->previousPageUrl() }}">‹</a>
+        <a href="{{ $hasil->appends(request()->query())->previousPageUrl() }}"
+           class="px-3 py-1 rounded border hover:bg-gray-100">‹</a>
     @endif
 
-    @php
-        $start = max($hasil->currentPage() - 2, 1);
-        $end = min($hasil->currentPage() + 2, $hasil->lastPage());
-    @endphp
+    {{-- PAGE NUMBERS --}}
+    @foreach ($hasil->getUrlRange(1, $hasil->lastPage()) as $page => $url)
 
-    {{-- NUMBER --}}
-    @for ($i = $start; $i <= $end; $i++)
-        @if ($i == $hasil->currentPage())
-            <span class="px-3 py-1 bg-blue-600 text-white rounded-full">
-                {{ $i }}
+        @php
+            $query = request()->query();
+            $query['page'] = $page;
+            $customUrl = url()->current() . '?' . http_build_query($query);
+        @endphp
+
+        @if ($page == $hasil->currentPage())
+            <span class="px-3 py-1 rounded bg-blue-600 text-white">
+                {{ $page }}
             </span>
-        @else
-            <a href="{{ $hasil->url($i) }}" class="px-2 hover:underline">
-                {{ $i }}
+
+        @elseif ($page <= 3 || $page > $hasil->lastPage()-3 || abs($page - $hasil->currentPage()) <= 1)
+
+            <a href="{{ $customUrl }}"
+               class="px-3 py-1 rounded border hover:bg-gray-100">
+                {{ $page }}
             </a>
+
+        @elseif ($page == 4 || $page == $hasil->lastPage()-3)
+            <span class="px-2">...</span>
         @endif
-    @endfor
+
+    @endforeach
 
     {{-- NEXT --}}
     @if ($hasil->hasMorePages())
-        <a href="{{ $hasil->nextPageUrl() }}">›</a>
+        <a href="{{ $hasil->appends(request()->query())->nextPageUrl() }}"
+           class="px-3 py-1 rounded border hover:bg-gray-100">›</a>
     @else
-        <span class="text-gray-400">›</span>
+        <span class="px-3 py-1 rounded border text-gray-300">›</span>
     @endif
+
+</div>
 
 </div>
 
     </div>
 
 </div>
-
-@endsection

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\HasilAnalisis;
+use Illuminate\Support\Facades\DB;
 
 class RekomendasiController extends Controller
 {
@@ -49,11 +50,23 @@ class RekomendasiController extends Controller
         // saran otomatis sederhana
         $saran = "Perlu peningkatan layanan terkait: " . $isuUtama;
 
-        return view('rekomendasi.index', compact(
-            'destinasiList',
-            'isuUtama',
-            'kataDominan',
-            'saran'
-        ));
+        $destinasiList = DB::table('hasil_analisis')
+    ->select('wisata')
+    ->distinct()
+    ->pluck('wisata');
+
+
+        return view('dashboard', compact(
+    'stats',
+    'chartSentimen',
+    'chartDestinasi',
+    'totalPerWisata',
+    'allText',
+    'lastUpdate',
+    'hasAnalisis',
+    'wisataList',
+    'hasil',
+    'destinasiList' // ✅ TAMBAH INI
+));
     }
 }

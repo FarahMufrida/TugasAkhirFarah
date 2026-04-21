@@ -11,6 +11,38 @@
         </div>
     @endif
 
+<div x-data="{ tab: 'dashboard' }" class="mb-6">
+
+    <!-- TAB -->
+    <div class="bg-blue-700 rounded-xl p-1 flex space-x-2 shadow mb-6">
+
+        <button @click="tab='dashboard'"
+            :class="tab==='dashboard' 
+                ? 'bg-white text-blue-700 shadow' 
+                : 'text-white hover:bg-blue-600'"
+            class="flex-1 py-3 rounded-lg text-sm font-medium transition">
+            Dashboard Sentara
+        </button>
+
+        <button @click="tab='analisis'"
+            :class="tab==='analisis' 
+                ? 'bg-white text-blue-700 shadow' 
+                : 'text-white hover:bg-blue-600'"
+            class="flex-1 py-3 rounded-lg text-sm font-medium transition">
+            Hasil Analisis Sentimen
+        </button>
+
+        <button @click="tab='rekomendasi'"
+            :class="tab==='rekomendasi' 
+                ? 'bg-white text-blue-700 shadow' 
+                : 'text-white hover:bg-blue-600'"
+            class="flex-1 py-3 rounded-lg text-sm font-medium transition">
+            Rekomendasi Layanan
+        </button>
+
+    </div>
+    
+    <div x-show="tab === 'dashboard'">
     {{-- Statistik Cards --}}
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
 
@@ -94,9 +126,21 @@
             <div id="wordCloud" class="w-full h-[240px] overflow-hidden"></div>
         </div>
 
+        </div>
     </div>
 
+    <!-- ================= ANALISIS ================= -->
+<div x-show="tab === 'analisis'" id="analisis-content">
+    @include('analisis.index')
 </div>
+
+    <!-- ================= REKOMENDASI ================= -->
+<div x-show="tab === 'rekomendasi'" id="rekomendasi-content">
+    @include('rekomendasi.index')
+</div>
+
+</div>
+
 
 {{-- ========================= --}}
 {{-- SCRIPT SECTION --}}
@@ -173,4 +217,58 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+<script>
+    const tab = new URLSearchParams(window.location.search).get('tab');
+
+    if (tab === 'analisis') {
+        showTab('analisis');
+    }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    const container = document.getElementById('analisis-content');
+
+    // ================= FILTER AJAX =================
+    document.addEventListener('submit', function(e){
+        if(e.target.id === 'filter-form'){
+            e.preventDefault();
+
+            const formData = new FormData(e.target);
+            const params = new URLSearchParams(formData).toString();
+
+            fetch('/dashboard?' + params)
+                .then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const newContent = doc.getElementById('analisis-content');
+                    container.innerHTML = newContent.innerHTML;
+                });
+        }
+    });
+
+    // ================= PAGINATION AJAX =================
+    document.addEventListener('click', function(e){
+        const link = e.target.closest('a');
+
+        if(link && link.href.includes('page=')){
+            e.preventDefault();
+
+            fetch(link.href)
+                .then(res => res.text())
+                .then(html => {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    const newContent = doc.getElementById('analisis-content');
+                    container.innerHTML = newContent.innerHTML;
+                });
+        }
+    });
+
+});
+</script>
 @endsection

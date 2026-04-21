@@ -26,23 +26,23 @@
         <!-- Menu -->
         <nav class="flex-1 px-4 space-y-2 text-sm font-medium">
             <a href="{{ route('dashboard') }}" class="block px-4 py-2 rounded-lg hover:bg-blue-800">
-                Dashboard
+                Dashboard Sentimen
             </a>
 
             <a href="{{ route('ulasan.index') }}" class="block px-4 py-2 rounded-lg hover:bg-blue-800">
                 Data Ulasan
             </a>
 
-            <a href="{{ route('analisis.index') }}"
+            <!-- <a href="{{ route('analisis.index') }}"
             class="block px-4 py-2 rounded-lg hover:bg-blue-800">
             Hasil Analisis Sentimen
-            </a>
+            </a> -->
 
 
-           <a href="{{ route('rekomendasi.index') }}"
+           <!-- <a href="{{ route('rekomendasi.index') }}"
             class="block px-4 py-2 rounded-lg hover:bg-blue-800">
             Rekomendasi Layanan
-            </a>
+            </a> -->
 
         </nav>
 

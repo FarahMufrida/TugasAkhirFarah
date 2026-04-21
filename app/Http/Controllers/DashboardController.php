@@ -10,7 +10,9 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $wisata = $request->wisata;
-
+    $evaluasi = DB::table('evaluasi_model')
+    ->latest()
+    ->first();
         // =============================
         // TOTAL ULASAN (DARI TABEL ULASAN)
         // =============================
@@ -115,14 +117,28 @@ class DashboardController extends Controller
             ->latest('created_at')
             ->value('created_at');
 
-        return view('dashboard', compact(
-            'stats',
-            'chartSentimen',
-            'chartDestinasi',
-            'totalPerWisata',
-            'allText',
-            'lastUpdate',
-            'hasAnalisis'
-        ));
+                $destinasiList = DB::table('ulasan')
+    ->select('wisata')
+    ->distinct()
+    ->pluck('wisata');
+
+$hasil = DB::table('hasil_analisis')
+    ->when($wisata && $wisata != 'Semua Destinasi', function ($q) use ($wisata) {
+        $q->where('wisata', $wisata);
+    })
+    ->paginate(10);
+
+       return view('dashboard', compact(
+    'stats',
+    'chartSentimen',
+    'chartDestinasi',
+    'totalPerWisata',
+    'allText',
+    'lastUpdate',
+    'hasAnalisis',
+    'destinasiList', // WAJIB
+    'hasil', 
+    'evaluasi'  // WAJIB
+));
     }
 }
