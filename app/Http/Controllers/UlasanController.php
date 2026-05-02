@@ -29,7 +29,7 @@ class UlasanController extends Controller
             $query->where('wisata', 'LIKE', '%' . $request->wisata . '%');
         }
 
-        $mentah = $query->latest()->paginate(50)->withQueryString();
+        $mentah = $query->latest()->paginate(20)->withQueryString();
 
         // OPTIONAL
         $preprocessing = PreprocessingData::latest()->paginate(30, ['*'], 'pre_page');
@@ -37,7 +37,7 @@ class UlasanController extends Controller
         // 🔥 RINGKASAN DATA
         $totalUlasan = Ulasan::count();
         $totalWisata = Ulasan::distinct('wisata')->count('wisata');
-        $lastUpdate = Ulasan::max('updated_at');
+        $lastUpdate = \App\Models\Ulasan::latest()->value('created_at');
 
         return view('ulasan.index', compact(
             'mentah',

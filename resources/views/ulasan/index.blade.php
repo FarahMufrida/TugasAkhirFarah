@@ -2,7 +2,7 @@
 
 @section('content')
 
-<div class="max-w-7xl mx-auto space-y-6">
+<div class="max-w-7xl mx-auto px-4 md:px-0 space-y-6">
 
     <!-- HEADER -->
     <h2 class="text-2xl font-bold text-gray-800">Data Ulasan</h2>
@@ -12,7 +12,7 @@
     <!-- ============================= -->
     <div class="bg-white rounded-xl shadow p-6">
 
-        <div class="grid grid-cols-3 gap-6 items-center">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
 
             <!-- UPLOAD -->
             <div class="border-2 border-dashed border-blue-300 rounded-xl p-6 text-center">
@@ -109,7 +109,7 @@
     <!-- ============================= -->
     <!-- 🔍 SEARCH + FILTER -->
     <!-- ============================= -->
-    <form method="GET" action="{{ route('ulasan.index') }}" class="flex gap-3">
+<form method="GET" action="{{ route('ulasan.index') }}" class="flex flex-col md:flex-row gap-3">
 
         <input type="text" name="search" value="{{ request('search') }}"
             placeholder="Cari ulasan atau wisata..."
@@ -140,6 +140,7 @@
     <!-- TABLE -->
     <!-- ============================= -->
     <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
 
         <table class="w-full text-sm">
             <thead class="bg-gray-100">
@@ -190,7 +191,9 @@
             </tbody>
         </table>
 
-       <div class="p-4 flex justify-between items-center text-sm text-gray-500">
+        </div>
+
+        <div class="p-4 flex flex-col md:flex-row gap-3 justify-between items-center text-sm text-gray-500">
 
     <!-- KIRI (FINAL FIX) -->
     <div>

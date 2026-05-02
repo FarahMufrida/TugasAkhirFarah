@@ -25,9 +25,11 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 // })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::get('/profile', function () {
+        return view('profile.index');
+    })->name('profile');
+    // Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    // Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/ulasan', [UlasanController::class, 'index'])->name('ulasan.index');
     Route::post('/ulasan/ambil', [UlasanController::class, 'ambilData'])->name('ulasan.ambil');
     Route::post('/ulasan/analisis', [UlasanController::class, 'analisisData'])->name('ulasan.analisis');

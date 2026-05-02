@@ -1,141 +1,316 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - SENTARA</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login - SENTARA</title>
 
-    @vite(['resources/css/app.css','resources/js/app.js'])
+<link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
 
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:'Poppins',sans-serif;
+}
+
+body{
+    background:#f3f5fb;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:40px;
+}
+
+/* CONTAINER */
+.container{
+    width:1350px;
+    max-width:100%;
+    height:720px;
+    background:#fff;
+    border-radius:25px;
+    display:flex;
+    overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,0.1);
+}
+
+/* LEFT */
+.left{
+    width:50%;
+    padding:60px 80px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+/* LOGO */
+.logo{
+    text-align:center;
+    margin-bottom:25px;
+}
+
+.logo img{
+    width:200px;
+}
+
+/* TITLE */
+.title{
+    text-align:center;
+    font-size:28px;
+    font-weight:600;
+}
+
+.title span{
+    color:#ff5c8d;
+}
+
+.subtitle{
+    text-align:center;
+    font-size:14px;
+    color:#777;
+    margin:12px 0 35px;
+}
+
+/* FORM */
+.form-group{
+    margin-bottom:20px;
+}
+
+label{
+    font-size:13px;
+    font-weight:500;
+}
+
+input{
+    width:100%;
+    padding:14px;
+    border-radius:12px;
+    border:1px solid #ddd;
+    margin-top:6px;
+    font-size:14px;
+}
+
+.input-group{
+    position:relative;
+}
+
+.toggle{
+    position:absolute;
+    right:12px;
+    top:14px;
+    cursor:pointer;
+}
+
+.forgot{
+    text-align:right;
+    margin-top:6px;
+}
+
+.forgot a{
+    font-size:12px;
+    color:#2d5be3;
+    text-decoration:none;
+}
+
+/* BUTTON */
+.btn{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:linear-gradient(90deg,#2d5be3,#4c7dff);
+    color:#fff;
+    font-weight:500;
+    margin-top:20px;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.btn:hover{
+    opacity:0.9;
+}
+
+.right{
+    width:50%;
+    position:relative;
+    overflow:hidden;
+}
+
+/* GAMBAR */
+.right img{
+    position:absolute;
+    top:0;
+    right:0;
+    width:100%;
+    height:100%;
+    object-fit:cover;
+
+    /* SHAPE DIPERBAIKI */
+    clip-path: ellipse(120% 100% at 100% 50%);
+}
+
+/* OVERLAY */
+.overlay{
+    position:absolute;
+    width:100%;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color:#fff;
+    background:rgba(0,0,0,0.25);
+    padding:20px;
+    z-index:2;           /* DI ATAS */
+}
+
+/* QUOTE */
+.quote{
+    font-size:42px;
+    color:#ff5c8d;
+    margin-bottom:10px;
+}
+
+/* TEXT */
+.overlay p{
+    font-size:30px;
+    font-weight:500;
+    line-height:1.5;
+    max-width:420px;
+}
+
+.overlay span{
+    color:#ff5c8d;
+    font-weight:600;
+}
+
+/* GARIS */
+.line{
+    width:70px;
+    height:3px;
+    background:#fff;
+    border-radius:10px;
+    margin-top:18px;
+    position:relative;
+}
+
+.line::after{
+    content:'';
+    position:absolute;
+    width:12px;
+    height:12px;
+    border:2px solid #fff;
+    border-left:none;
+    border-top:none;
+    transform:rotate(-45deg);
+    right:-12px;
+    top:-5px;
+}
+
+/* MOBILE */
+@media(max-width:900px){
+    .container{
+        flex-direction:column;
+        height:auto;
+    }
+
+    .left{
+        width:100%;
+        padding:40px;
+    }
+
+    .right{
+        width:100%;
+        height:260px;
+    }
+
+    .overlay p{
+        font-size:20px;
+    }
+
+    .logo img{
+        width:150px;
+    }
+}
+</style>
 </head>
 
-<body class="min-h-screen flex items-center justify-center bg-gray-100 px-6">
+<body>
 
-    <!-- WRAPPER CARD -->
-    <div class="w-full max-w-6xl bg-white rounded-3xl shadow-2xl overflow-hidden flex">
+<div class="container">
 
-        <!-- LEFT SIDE LOGIN -->
-        <div class="w-1/2 flex flex-col justify-center px-14 py-16 bg-white">
+    <!-- LEFT -->
+    <div class="left">
 
-            <h1 class="text-4xl font-bold text-blue-900 mb-2">
-                SENTARA
-            </h1>
-
-            <p class="text-gray-500 mb-10">
-                Login untuk mengakses Dashboard Analisis Sentimen Wisata Jember
-            </p>
-
-            <!-- Login Form -->
-            <form method="POST" action="{{ route('login') }}" class="space-y-6">
-                @csrf
-
-                <!-- Email -->
-                <div>
-                    <label class="block text-gray-700 font-medium mb-2">
-                        Email
-                    </label>
-                    <input type="email" name="email" required
-                        class="w-full border border-gray-300 rounded-xl px-4 py-3
-                               focus:ring-2 focus:ring-blue-400 focus:outline-none">
-                </div>
-
-                <!-- Password -->
-                <div>
-                    <label class="block text-gray-700 font-medium mb-2">
-                        Password
-                    </label>
-                    <input type="password" name="password" required
-                        class="w-full border border-gray-300 rounded-xl px-4 py-3
-                               focus:ring-2 focus:ring-blue-400 focus:outline-none">
-                </div>
-
-                <!-- Button -->
-                <button type="submit"
-                    class="w-full bg-blue-700 hover:bg-blue-800 text-white py-3
-                           rounded-xl font-semibold shadow-md transition">
-                    Login
-                </button>
-
-                <!-- Register Link -->
-                <p class="text-sm text-gray-500 text-center">
-                    Belum punya akun?
-                    <a href="{{ route('register') }}"
-                       class="text-blue-700 font-semibold hover:underline">
-                        Register
-                    </a>
-                </p>
-            </form>
+        <div class="logo">
+            <img src="{{ asset('images/logo-sentara.png') }}">
         </div>
 
+        <div class="title">
+            Selamat Datang <span>Kembali!</span>
+        </div>
 
-        <!-- RIGHT SIDE SLIDER -->
-        <div class="w-1/2 relative overflow-hidden">
+        <div class="subtitle">
+            Login untuk mengakses Dashboard Analisis Sentimen Wisata Jember
+        </div>
 
-            <!-- Slides -->
-            <img src="{{ asset('images/papuma.jpg') }}"
-                 class="slide absolute inset-0 w-full h-full object-cover">
+        <form method="POST" action="{{ route('login') }}">
+            @csrf
 
-            <img src="{{ asset('images/watuulo.jpeg') }}"
-                 class="slide hidden absolute inset-0 w-full h-full object-cover">
-
-            <img src="{{ asset('images/botani.jpg') }}"
-                 class="slide hidden absolute inset-0 w-full h-full object-cover">
-
-            <img src="{{ asset('images/gununggambir.jpeg') }}"
-                 class="slide hidden absolute inset-0 w-full h-full object-cover">
-
-
-            <!-- Overlay -->
-            <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <h2 class="text-white text-3xl font-bold text-center px-10">
-                    Eksplorasi Wisata Kabupaten Jember
-                </h2>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" placeholder="Masukkan email Anda" required>
             </div>
 
-            <!-- LEFT ARROW -->
-            <button onclick="prevSlide()"
-                class="absolute left-5 top-1/2 -translate-y-1/2
-                       bg-white/40 hover:bg-white/70 text-white
-                       px-4 py-2 rounded-full text-2xl font-bold transition">
-                ❮
-            </button>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-group">
+                    <input type="password" id="password" name="password" placeholder="Masukkan password Anda" required>
+                    <span class="toggle" onclick="togglePass()">👁</span>
+                </div>
 
-            <!-- RIGHT ARROW -->
-            <button onclick="nextSlide()"
-                class="absolute right-5 top-1/2 -translate-y-1/2
-                       bg-white/40 hover:bg-white/70 text-white
-                       px-4 py-2 rounded-full text-2xl font-bold transition">
-                ❯
-            </button>
+                <div class="forgot">
+                    <a href="{{ route('password.request') }}">Lupa password?</a>
+                </div>
+            </div>
 
+            <button class="btn">Login</button>
+
+        </form>
+
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+
+        <img src="{{ asset('images/papuma.jpg') }}" alt="bg">
+
+        <div class="overlay">
+           
+            <p>
+                Memahami opini,<br>
+                meningkatkan <span>pariwisata</span><br>
+                Jember.
+            </p>
+
+            
         </div>
 
     </div>
 
+</div>
 
-    <!-- SLIDER SCRIPT -->
-    <script>
-        let index = 0;
-        const slides = document.querySelectorAll(".slide");
-
-        function showSlide(i) {
-            slides.forEach(slide => slide.classList.add("hidden"));
-            slides[i].classList.remove("hidden");
-        }
-
-        function nextSlide() {
-            index = (index + 1) % slides.length;
-            showSlide(index);
-        }
-
-        function prevSlide() {
-            index = (index - 1 + slides.length) % slides.length;
-            showSlide(index);
-        }
-
-        // // Auto Slide setiap 3 detik
-        // setInterval(nextSlide, 3000);
-    </script>
+<script>
+function togglePass(){
+    let x = document.getElementById("password");
+    x.type = x.type === "password" ? "text" : "password";
+}
+</script>
 
 </body>
 </html>
