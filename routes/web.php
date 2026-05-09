@@ -7,41 +7,60 @@ use App\Http\Controllers\UlasanController;
 use App\Http\Controllers\AnalisisController;
 use App\Http\Controllers\RekomendasiController;
 
+/*
+|--------------------------------------------------------------------------
+| ROUTE AWAL
+|--------------------------------------------------------------------------
+*/
+
+// hanya SATU route '/'
 Route::get('/', function () {
     return redirect('/login');
 });
 
-Route::get('/', function () {
-    return view('welcome');
-});
+/*
+|--------------------------------------------------------------------------
+| ROUTE SETELAH LOGIN
+|--------------------------------------------------------------------------
+*/
 
-// Dashboard SENTARA (harus login)
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
+Route::middleware(['auth', 'verified'])->group(function () {
 
-// Route::get('/dashboard', function () {
-//     return view('dashboard');
-// })->middleware(['auth', 'verified'])->name('dashboard');
+    // ✅ DASHBOARD
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('dashboard');
 
-Route::middleware('auth')->group(function () {
+    // ✅ PROFILE (ini yang kamu tanya)
     Route::get('/profile', function () {
         return view('profile.index');
     })->name('profile');
+
+    // kalau mau aktifkan update:
     // Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     // Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    Route::get('/ulasan', [UlasanController::class, 'index'])->name('ulasan.index');
-    Route::post('/ulasan/ambil', [UlasanController::class, 'ambilData'])->name('ulasan.ambil');
-    Route::post('/ulasan/analisis', [UlasanController::class, 'analisisData'])->name('ulasan.analisis');
-    Route::post('/ulasan/upload', [UlasanController::class, 'upload'])->name('ulasan.upload');
-        Route::get('/hasil-analisis', [AnalisisController::class, 'index'])
-    ->name('analisis.index');
-   Route::get('/rekomendasi', [RekomendasiController::class, 'index'])
-    ->name('rekomendasi.index');;
-    Route::get('/', function () {
-    return redirect()->route('login');
-    
-});
+
+    // ✅ DATA ULASAN
+    Route::get('/ulasan', [UlasanController::class, 'index'])
+        ->name('ulasan.index');
+
+    // Route::post('/ulasan/ambil', [UlasanController::class, 'ambilData'])
+    //     ->name('ulasan.ambil');
+
+    Route::post('/ulasan/upload', [UlasanController::class, 'upload'])
+        ->name('ulasan.upload');
+
+    // ✅ PROSES ANALISIS
+    Route::post('/proses-analisis', [UlasanController::class, 'analisisData'])
+        ->name('proses.analisis');
+
+    // ✅ HASIL ANALISIS
+    Route::get('/analisis', [AnalisisController::class, 'index'])
+        ->name('analisis.index');
+
+    // ✅ REKOMENDASI
+    Route::get('/rekomendasi', function() {
+    return redirect('/dashboard?tab=rekomendasi');
+})->name('rekomendasi.index');
 
 });
 

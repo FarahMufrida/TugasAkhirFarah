@@ -4,30 +4,29 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\HasilAnalisis;
+use Illuminate\Support\Facades\DB;
 
 class AnalisisController extends Controller
 {
     public function index(Request $request)
     {
-        // Dropdown list destinasi unik
+        // Ambil data evaluasi model
+        $evaluasi = DB::table('evaluasi_model')->latest()->first();
+
+        // Dropdown wisata
         $wisataList = HasilAnalisis::select('wisata')
             ->distinct()
             ->pluck('wisata');
 
-        // Query utama tabel
+        // Query hasil analisis dengan filter
         $query = HasilAnalisis::query();
 
-        // Filter kalau user pilih destinasi tertentu
         if ($request->filled('wisata')) {
             $query->where('wisata', $request->wisata);
         }
 
-        // Data hasil analisis (pakai paginate biar rapi)
-        $hasil = $query->latest()->paginate(5);
+        $hasil = $query->latest()->paginate(10);
 
-        return view('analisis.index', compact(
-            'hasil',
-            'wisataList'
-        ));
+        return view('analisis.index', compact('hasil', 'wisataList', 'evaluasi'));
     }
 }

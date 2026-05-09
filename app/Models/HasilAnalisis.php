@@ -2,18 +2,17 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class HasilAnalisis extends Model
 {
-    use HasFactory;
-
     protected $table = 'hasil_analisis';
 
     protected $fillable = [
         'wisata',
-        'ulasan_terolah',
+        'ulasan_asli',        // ← fix dari ulasan_terolah
+        'ulasan_bersih',      // ← tambah ini
+        'hasil_preprocessing',
         'sentimen',
         'probabilitas'
     ];
