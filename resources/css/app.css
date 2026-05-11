@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Background halaman */
+body {
+    background-color: #f3f6fb;
+}
+
+/* Card putih */
+.bg-white {
+    border-radius: 14px !important;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+
+/* Sidebar menu */
+.sidebar-menu .sidebar-link {
+    display: block;
+    padding: 10px 14px;
+    border-radius: 10px;
+    color: white;
+    font-weight: 500;
+    transition: 0.2s;
+}
+
+.sidebar-menu .sidebar-link:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
