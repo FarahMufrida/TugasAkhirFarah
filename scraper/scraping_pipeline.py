@@ -65,7 +65,8 @@ def read_laravel_env():
 
 
 def env_value(env, key, default=""):
-    value = os.getenv(key, env.get(key, default))
+    # .env file dibaca DULUAN, baru fallback ke os.getenv, lalu default
+    value = env.get(key) or os.getenv(key) or default
     if value in {None, "", "null", "None"}:
         return default
     return value
@@ -734,13 +735,12 @@ def main():
     scraper = scraper_config()
     destinations = selected_destinations(args.wisata)
     conn = pymysql.connect(
-        host=config["host"],
-        port=config["port"],
-        user=config["user"],
-        password=config["password"],
-        database=config["database"],
-        charset="utf8mb4",
-    )
+    host='localhost',
+    port=3306,
+    user='root',
+    password='',  # isi password kalau ada
+    database='sistem_analisis',
+)
     cursor = conn.cursor()
 
     try:
