@@ -3,6 +3,7 @@ import argparse
 import os
 import re
 import sys
+import sqlite3
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -67,10 +68,22 @@ def db_config():
     env = read_laravel_env()
     connection = env_value(env, "DB_CONNECTION", "mysql")
 
+    if connection == "sqlite":
+        database = env_value(env, "DB_DATABASE", str(BASE_DIR / "database" / "database.sqlite"))
+        database_path = Path(database)
+        if not database_path.is_absolute():
+            database_path = BASE_DIR / database
+
+        return {
+            "connection": connection,
+            "database": str(database_path),
+        }
+
     if connection not in {"mysql", "mariadb"}:
-        fail(f"DB_CONNECTION={connection} belum didukung oleh analisis.py. Gunakan mysql/mariadb.")
+        fail(f"DB_CONNECTION={connection} belum didukung oleh analisis.py. Gunakan sqlite/mysql/mariadb.")
 
     return {
+        "connection": connection,
         "host": env_value(env, "DB_HOST", "127.0.0.1"),
         "port": int(env_value(env, "DB_PORT", "3306")),
         "database": env_value(env, "DB_DATABASE", "sentara"),
@@ -80,6 +93,12 @@ def db_config():
 
 
 def make_connections(config):
+    if config["connection"] == "sqlite":
+        engine = create_engine(f"sqlite:///{config['database']}")
+        conn = sqlite3.connect(config["database"])
+        conn.row_factory = sqlite3.Row
+        return engine, conn
+
     engine_url = (
         "mysql+pymysql://"
         f"{quote_plus(config['user'])}:{quote_plus(config['password'])}"
@@ -96,6 +115,29 @@ def make_connections(config):
         cursorclass=pymysql.cursors.DictCursor,
     )
     return engine, conn
+
+
+def is_sqlite_connection(conn):
+    return isinstance(conn, sqlite3.Connection)
+
+
+def prepare_sql(conn, sql):
+    if is_sqlite_connection(conn):
+        return sql.replace("%s", "?").replace("NOW()", "CURRENT_TIMESTAMP")
+    return sql
+
+
+def execute(cursor, conn, sql, params=()):
+    cursor.execute(prepare_sql(conn, sql), params)
+
+
+def table_columns(cursor, conn, table):
+    if is_sqlite_connection(conn):
+        cursor.execute(f"PRAGMA table_info({table})")
+        return {row["name"] for row in cursor.fetchall()}
+
+    cursor.execute(f"SHOW COLUMNS FROM {table}")
+    return {row["Field"] for row in cursor.fetchall()}
 
 
 SLANG_MAP = {
@@ -214,16 +256,19 @@ def apply_rating_priority(row, model_classes=None):
 def main():
     args = parse_args()
     config = db_config()
-    log("INFO", f"Menggunakan database {config['database']} di {config['host']}:{config['port']}")
+    if config["connection"] == "sqlite":
+        log("INFO", f"Menggunakan database SQLite {config['database']}")
+    else:
+        log("INFO", f"Menggunakan database {config['database']} di {config['host']}:{config['port']}")
 
     engine, raw_conn = make_connections(config)
     cursor = raw_conn.cursor()
 
     try:
         if args.periode_id:
-            cursor.execute("SELECT id, nama FROM periode_analisis WHERE id = %s LIMIT 1", (args.periode_id,))
+            execute(cursor, raw_conn, "SELECT id, nama FROM periode_analisis WHERE id = %s LIMIT 1", (args.periode_id,))
         else:
-            cursor.execute("""
+            execute(cursor, raw_conn, """
                 SELECT p.id, p.nama
                 FROM periode_analisis p
                 WHERE EXISTS (
@@ -241,8 +286,11 @@ def main():
         log("INFO", f"Analisis periode terbaru: {periode_nama} (periode_id={periode_id})")
 
         df = pd.read_sql(
-            "SELECT id, wisata, reviewer, rating, ulasan, tanggal, periode_id "
-            "FROM ulasan WHERE periode_id = %s",
+            prepare_sql(
+                raw_conn,
+                "SELECT id, wisata, reviewer, rating, ulasan, tanggal, periode_id "
+                "FROM ulasan WHERE periode_id = %s",
+            ),
             engine,
             params=(periode_id,),
         )
@@ -322,11 +370,10 @@ def main():
 
         log("INFO", "Evaluasi memakai pseudo-label dari rating/rule otomatis, bukan label manual.")
 
-        cursor.execute("DELETE FROM hasil_analisis WHERE periode_id = %s", (periode_id,))
-        cursor.execute("DELETE FROM evaluasi_model WHERE periode_id = %s", (periode_id,))
+        execute(cursor, raw_conn, "DELETE FROM hasil_analisis WHERE periode_id = %s", (periode_id,))
+        execute(cursor, raw_conn, "DELETE FROM evaluasi_model WHERE periode_id = %s", (periode_id,))
 
-        cursor.execute("SHOW COLUMNS FROM hasil_analisis")
-        hasil_columns = {row["Field"] for row in cursor.fetchall()}
+        hasil_columns = table_columns(cursor, raw_conn, "hasil_analisis")
         insert_columns = [
             "wisata",
             "ulasan_asli",
@@ -360,10 +407,12 @@ def main():
             if "ulasan_terolah" in hasil_columns:
                 values.insert(3, str(row["ulasan_bersih"]))
 
-            cursor.execute(insert_hasil, tuple(values))
+            execute(cursor, raw_conn, insert_hasil, tuple(values))
 
         weighted = report.get("weighted avg", {})
-        cursor.execute(
+        execute(
+            cursor,
+            raw_conn,
             """
             INSERT INTO evaluasi_model
             (`precision`, `recall`, f1_score, accuracy, tp, tn, fp, fn, periode_id, created_at, updated_at)

@@ -5,6 +5,7 @@ import json
 import re
 import sys
 import time
+import sqlite3
 from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -80,10 +81,22 @@ def env_bool(env, key, default=False):
 def db_config():
     env = read_laravel_env()
     connection = env_value(env, "DB_CONNECTION", "mysql")
+    if connection == "sqlite":
+        database = env_value(env, "DB_DATABASE", str(BASE_DIR / "database" / "database.sqlite"))
+        database_path = Path(database)
+        if not database_path.is_absolute():
+            database_path = BASE_DIR / database
+
+        return {
+            "connection": connection,
+            "database": str(database_path),
+        }
+
     if connection not in {"mysql", "mariadb"}:
-        fail(f"DB_CONNECTION={connection} belum didukung oleh scraping_pipeline.py. Gunakan mysql/mariadb.")
+        fail(f"DB_CONNECTION={connection} belum didukung oleh scraping_pipeline.py. Gunakan sqlite/mysql/mariadb.")
 
     return {
+        "connection": connection,
         "host": env_value(env, "DB_HOST", "127.0.0.1"),
         "port": int(env_value(env, "DB_PORT", "3306")),
         "database": env_value(env, "DB_DATABASE", "sentara"),
@@ -110,6 +123,34 @@ def scraper_config():
         "apify_language": env_value(env, "APIFY_LANGUAGE", "id"),
         "apify_timeout": int(env_value(env, "APIFY_TIMEOUT_SECONDS", "360")),
     }
+
+
+def is_sqlite_connection(conn):
+    return isinstance(conn, sqlite3.Connection)
+
+
+def prepare_sql(conn, sql):
+    if is_sqlite_connection(conn):
+        return sql.replace("%s", "?").replace("NOW()", "CURRENT_TIMESTAMP")
+    return sql
+
+
+def execute(cursor, conn, sql, params=()):
+    cursor.execute(prepare_sql(conn, sql), params)
+
+
+def make_connection(config):
+    if config["connection"] == "sqlite":
+        return sqlite3.connect(config["database"])
+
+    return pymysql.connect(
+        host=config["host"],
+        port=config["port"],
+        user=config["user"],
+        password=config["password"],
+        database=config["database"],
+        charset="utf8mb4",
+    )
 
 
 def normalize_rating(value):
@@ -197,7 +238,9 @@ def get_or_create_period(cursor, conn, start_date, end_date):
     ]
     nama = f"{nama_bulan[bulan - 1]} {tahun}"
 
-    cursor.execute(
+    execute(
+        cursor,
+        conn,
         "SELECT id, nama FROM periode_analisis WHERE bulan = %s AND tahun = %s LIMIT 1",
         (bulan, tahun),
     )
@@ -205,7 +248,9 @@ def get_or_create_period(cursor, conn, start_date, end_date):
     if periode:
         return periode[0], periode[1]
 
-    cursor.execute(
+    execute(
+        cursor,
+        conn,
         """
         INSERT INTO periode_analisis (nama, bulan, tahun, created_at, updated_at)
         VALUES (%s, %s, %s, NOW(), NOW())
@@ -349,6 +394,9 @@ def first_value(data, keys, default=""):
     return default
 
 
+RATING_ONLY_REVIEW_TEXT = "[Tanpa teks]"
+
+
 def normalize_actor_id(actor_id):
     return actor_id.strip().replace("/", "~")
 
@@ -399,9 +447,12 @@ def fetch_apify_reviews(wisata, url, config, start_date, end_date):
         if not isinstance(item, dict):
             continue
 
-        ulasan = first_value(item, ["text", "reviewText", "textTranslated", "snippet"])
-        if not str(ulasan).strip():
+        ulasan = str(first_value(item, ["text", "reviewText", "textTranslated", "snippet"], "")).strip()
+        rating = normalize_rating(first_value(item, ["stars", "rating", "score"], None))
+        if not ulasan and rating is None:
             continue
+        if not ulasan:
+            ulasan = RATING_ONLY_REVIEW_TEXT
 
         tanggal_text = str(first_value(item, ["publishedAtDate", "publishAt", "publishedAt", "date"], ""))
         estimated_date = estimate_review_date(tanggal_text, scrape_now)
@@ -412,8 +463,8 @@ def fetch_apify_reviews(wisata, url, config, start_date, end_date):
             {
                 "wisata": wisata,
                 "reviewer": first_value(item, ["name", "reviewerName", "authorName", "reviewer"], "anonymous"),
-                "rating": normalize_rating(first_value(item, ["stars", "rating", "score"], None)),
-                "ulasan": str(ulasan).strip(),
+                "rating": rating,
+                "ulasan": ulasan,
                 "tanggal": estimated_date.strftime("%Y-%m-%d") if estimated_date else str(tanggal_text or ""),
             }
         )
@@ -426,7 +477,9 @@ def insert_reviews(cursor, conn, reviews, periode_id):
     skipped_duplicate = 0
 
     for review in reviews:
-        cursor.execute(
+        execute(
+            cursor,
+            conn,
             """
             SELECT id FROM ulasan
             WHERE wisata = %s AND reviewer = %s AND ulasan = %s AND tanggal = %s
@@ -438,7 +491,9 @@ def insert_reviews(cursor, conn, reviews, periode_id):
             skipped_duplicate += 1
             continue
 
-        cursor.execute(
+        execute(
+            cursor,
+            conn,
             """
             INSERT INTO ulasan
             (wisata, reviewer, rating, ulasan, tanggal, scraping_date, periode_id, sentimen, created_at, updated_at)
@@ -460,8 +515,10 @@ def insert_reviews(cursor, conn, reviews, periode_id):
     return saved, skipped_duplicate
 
 
-def count_reviews_for_wisata(cursor, wisata, periode_id):
-    cursor.execute(
+def count_reviews_for_wisata(cursor, conn, wisata, periode_id):
+    execute(
+        cursor,
+        conn,
         "SELECT COUNT(*) FROM ulasan WHERE wisata = %s AND periode_id = %s",
         (wisata, periode_id),
     )
@@ -470,14 +527,14 @@ def count_reviews_for_wisata(cursor, wisata, periode_id):
 
 
 def purge_out_of_range_reviews(cursor, conn, periode_id, start_date, end_date):
-    cursor.execute("SELECT id, wisata, tanggal FROM ulasan WHERE periode_id = %s", (periode_id,))
+    execute(cursor, conn, "SELECT id, wisata, tanggal FROM ulasan WHERE periode_id = %s", (periode_id,))
     rows = cursor.fetchall()
     deleted = 0
 
     for row in rows:
         review_id, wisata, tanggal = row
         if not is_review_in_date_range(tanggal, start_date, end_date):
-            cursor.execute("DELETE FROM ulasan WHERE id = %s", (review_id,))
+            execute(cursor, conn, "DELETE FROM ulasan WHERE id = %s", (review_id,))
             deleted += 1
             log("INFO", f"Hapus ulasan luar rentang dari periode aktif: {wisata} ({tanggal})")
 
@@ -486,10 +543,12 @@ def purge_out_of_range_reviews(cursor, conn, periode_id, start_date, end_date):
     log("INFO", f"Pembersihan ulasan luar rentang: {deleted} baris dihapus.")
 
 
-def validate_all_destinations_have_data(cursor, periode_id, destinations, require_all=False):
+def validate_all_destinations_have_data(cursor, conn, periode_id, destinations, require_all=False):
     missing = []
+    total_existing = 0
     for wisata in destinations:
-        total = count_reviews_for_wisata(cursor, wisata, periode_id)
+        total = count_reviews_for_wisata(cursor, conn, wisata, periode_id)
+        total_existing += total
         log("INFO", f"Validasi data {wisata}: {total} ulasan pada periode_id={periode_id}")
         if total == 0:
             missing.append(wisata)
@@ -504,15 +563,35 @@ def validate_all_destinations_have_data(cursor, periode_id, destinations, requir
     if missing:
         log("WARNING", "Belum ada ulasan periode aktif untuk: " + ", ".join(missing))
 
+    return total_existing
 
-def validate_all_destinations_processed(processed, destinations):
+
+def validate_all_destinations_processed(processed, destinations, require_all=False):
     missing = [wisata for wisata in destinations if wisata not in processed]
-    if missing:
+    if missing and require_all:
         fail(
             "Scraper belum berhasil membuka/memproses semua lokasi: "
             + ", ".join(missing)
             + ". Cek URL atau selector Google Maps untuk lokasi tersebut."
         )
+
+    if missing:
+        log("WARNING", "Scraper belum berhasil memproses lokasi: " + ", ".join(missing))
+
+
+def first_review_text(review, xpaths, attr=None):
+    for xpath in xpaths:
+        try:
+            elements = review.find_elements("xpath", xpath)
+            for element in elements:
+                value = element.get_attribute(attr) if attr else element.text
+                value = str(value or "").strip()
+                if value:
+                    return value
+        except Exception:
+            continue
+
+    return ""
 
 
 def scrape_with_apify(cursor, conn, periode_id, start_date, end_date, config, destinations):
@@ -529,8 +608,10 @@ def scrape_with_apify(cursor, conn, periode_id, start_date, end_date, config, de
         log("OK", f"{wisata}: Apify dapat {len(reviews)}, simpan {saved}, duplikat dilewati {skipped_duplicate}")
 
     log("OK", f"Scraping Apify selesai. Total simpan {total_saved}, duplikat dilewati {total_skipped_duplicate}.")
-    validate_all_destinations_processed(processed, destinations)
-    validate_all_destinations_have_data(cursor, periode_id, destinations, config["require_all_destinations"])
+    validate_all_destinations_processed(processed, destinations, config["require_all_destinations"])
+    total_existing = validate_all_destinations_have_data(cursor, conn, periode_id, destinations, config["require_all_destinations"])
+    if total_existing == 0:
+        fail("Scraping selesai tetapi tidak ada ulasan yang berhasil disimpan.")
 
 
 def click_sort_newest(driver):
@@ -556,18 +637,17 @@ def click_sort_newest(driver):
     return False
 
 
-def click_reviews_tab(driver, wait, wisata):
+def click_reviews_tab(driver, wait, wisata, manual_login_timeout=0):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
 
     candidates = [
-        "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
-        "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
-        "//button[.//*[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]]",
-        "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
-        "//button[contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
         "//div[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
         "//div[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
+        "//button[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
+        "//button[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
+        "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan') and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tulis')) and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'write'))]",
+        "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review') and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'write'))]",
     ]
 
     try:
@@ -575,18 +655,47 @@ def click_reviews_tab(driver, wait, wisata):
     except Exception:
         pass
 
-    for xpath in candidates:
-        try:
-            elements = driver.find_elements(By.XPATH, xpath)
-            for element in elements:
-                if element.is_displayed():
-                    label = element.get_attribute("aria-label") or element.text or xpath
-                    driver.execute_script("arguments[0].click();", element)
-                    time.sleep(4)
-                    log("INFO", f"{wisata}: tab ulasan dibuka lewat {label}")
-                    return True
-        except Exception:
-            continue
+    def try_click_reviews_tab():
+        for xpath in candidates:
+            try:
+                elements = driver.find_elements(By.XPATH, xpath)
+                for element in elements:
+                    if element.is_displayed():
+                        label = element.get_attribute("aria-label") or element.text or xpath
+                        normalized_label = label.strip().lower()
+                        if "tulis ulasan" in normalized_label or "write a review" in normalized_label:
+                            continue
+                        driver.execute_script("arguments[0].click();", element)
+                        time.sleep(4)
+                        log("INFO", f"{wisata}: tab ulasan dibuka lewat {label}")
+                        return True
+            except Exception:
+                continue
+        return False
+
+    if try_click_reviews_tab():
+        return True
+
+    page_text = driver.find_element(By.TAG_NAME, "body").text.lower()
+    if "tampilan terbatas" in page_text or "limited view" in page_text:
+        if manual_login_timeout <= 0:
+            fail(
+                "Google Maps menampilkan tampilan terbatas sehingga tab Ulasan tidak tersedia. "
+                "Jalankan Selenium dalam mode visible lalu login Google di jendela Chrome yang terbuka."
+            )
+
+        log(
+            "WARNING",
+            "Google Maps menampilkan tampilan terbatas. Silakan login Google di jendela Chrome yang terbuka. "
+            f"Menunggu maksimal {manual_login_timeout} detik.",
+        )
+        deadline = time.time() + manual_login_timeout
+        while time.time() < deadline:
+            time.sleep(3)
+            if try_click_reviews_tab():
+                return True
+
+        fail("Login Google belum selesai atau tab Ulasan masih tidak tersedia setelah menunggu.")
 
     return False
 
@@ -650,7 +759,7 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
                     "Login manual di Chrome profile khusus, lalu klik Ambil Data lagi."
                 )
 
-            if not click_reviews_tab(driver, wait, wisata):
+            if not click_reviews_tab(driver, wait, wisata, 0 if config["headless"] else config["manual_login_timeout"]):
                 log("WARNING", f"Tombol/tab ulasan tidak ditemukan untuk {wisata}")
                 continue
 
@@ -679,32 +788,62 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
 
             time.sleep(2)
             items = []
-            reviews = driver.find_elements(By.XPATH, "//div[@data-review-id]")
+            reviews = driver.find_elements(By.XPATH, "//div[contains(@class,'jftiEf') and @data-review-id]")
             log("INFO", f"{wisata}: {len(reviews)} review ditemukan")
 
             for review in reviews:
-                try:
-                    ulasan = review.find_element(By.XPATH, ".//span[contains(@class,'wiI7pd')]").text.strip()
-                    if not ulasan:
-                        continue
-                    tanggal_text = review.find_element(By.XPATH, ".//span[contains(@class,'rsqaWe')]").text.strip()
-                    estimated_date = estimate_review_date(tanggal_text, scrape_now)
-                    if config["filter_date_range"] and not is_review_in_date_range(tanggal_text, start_date, end_date, scrape_now):
-                        log("INFO", f"{wisata}: skip ulasan luar rentang ({tanggal_text})")
-                        continue
-                    items.append(
-                        {
-                            "wisata": wisata,
-                            "reviewer": review.find_element(By.XPATH, ".//div[contains(@class,'d4r55')]").text.strip(),
-                            "rating": normalize_rating(
-                                review.find_element(By.XPATH, ".//span[@role='img']").get_attribute("aria-label")
-                            ),
-                            "ulasan": ulasan,
-                            "tanggal": estimated_date.strftime("%Y-%m-%d") if estimated_date else str(tanggal_text or ""),
-                        }
-                    )
-                except Exception as exc:
-                    log("WARNING", f"{wisata}: skip review karena {exc}")
+                rating_label = first_review_text(
+                    review,
+                    [
+                        ".//*[@role='img' and contains(@aria-label,'bintang')]",
+                        ".//*[@role='img' and contains(@aria-label,'star')]",
+                    ],
+                    "aria-label",
+                )
+                rating = normalize_rating(rating_label)
+                ulasan = first_review_text(
+                    review,
+                    [
+                        ".//span[contains(@class,'wiI7pd')]",
+                        ".//span[contains(@class,'MyEned')]",
+                        ".//div[contains(@class,'MyEned')]//span",
+                        ".//span[@lang]",
+                    ],
+                )
+                if not ulasan and rating is None:
+                    continue
+                if not ulasan:
+                    ulasan = RATING_ONLY_REVIEW_TEXT
+
+                tanggal_text = first_review_text(
+                    review,
+                    [
+                        ".//span[contains(@class,'rsqaWe')]",
+                        ".//span[contains(@class,'xRkPPb')]",
+                    ],
+                )
+                estimated_date = estimate_review_date(tanggal_text, scrape_now)
+                if config["filter_date_range"] and not is_review_in_date_range(tanggal_text, start_date, end_date, scrape_now):
+                    log("INFO", f"{wisata}: skip ulasan luar rentang ({tanggal_text})")
+                    continue
+
+                reviewer = first_review_text(
+                    review,
+                    [
+                        ".//div[contains(@class,'d4r55')]",
+                        ".//button[contains(@class,'WEBjve')]",
+                    ],
+                ) or "anonymous"
+
+                items.append(
+                    {
+                        "wisata": wisata,
+                        "reviewer": reviewer,
+                        "rating": rating,
+                        "ulasan": ulasan,
+                        "tanggal": estimated_date.strftime("%Y-%m-%d") if estimated_date else str(tanggal_text or ""),
+                    }
+                )
 
             saved, skipped_duplicate = insert_reviews(cursor, conn, items, periode_id)
             processed.add(wisata)
@@ -713,8 +852,10 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
             log("OK", f"{wisata}: simpan {saved}, duplikat dilewati {skipped_duplicate}")
 
         log("OK", f"Scraping Selenium selesai. Total simpan {total_saved}, duplikat dilewati {total_skipped_duplicate}.")
-        validate_all_destinations_processed(processed, destinations)
-        validate_all_destinations_have_data(cursor, periode_id, destinations, config["require_all_destinations"])
+        validate_all_destinations_processed(processed, destinations, config["require_all_destinations"])
+        total_existing = validate_all_destinations_have_data(cursor, conn, periode_id, destinations, config["require_all_destinations"])
+        if total_existing == 0:
+            fail("Scraping selesai tetapi tidak ada ulasan yang berhasil disimpan. Cek apakah tab ulasan Google Maps terbuka dan filter tanggal tidak terlalu ketat.")
     finally:
         driver.quit()
 
@@ -734,13 +875,7 @@ def main():
     config = db_config()
     scraper = scraper_config()
     destinations = selected_destinations(args.wisata)
-    conn = pymysql.connect(
-    host='localhost',
-    port=3306,
-    user='root',
-    password='',  # isi password kalau ada
-    database='sistem_analisis',
-)
+    conn = make_connection(config)
     cursor = conn.cursor()
 
     try:

@@ -122,7 +122,6 @@ class UlasanController extends Controller
         ]);
 
         $periodeBulan = Carbon::createFromFormat('Y-m', $validated['periode_bulan']);
-        $periodeId = $this->getOrCreatePeriode($periodeBulan);
         $rows = $this->readCsvRows($request->file('file')->getRealPath());
 
         if (empty($rows)) {
@@ -140,12 +139,20 @@ class UlasanController extends Controller
 
         $inserted = 0;
         $skipped = 0;
+        $periodeIds = [];
 
-        DB::transaction(function () use ($rows, $periodeId, &$inserted, &$skipped) {
-            foreach ($rows as $row) {
+        DB::transaction(function () use ($rows, $periodeBulan, &$inserted, &$skipped, &$periodeIds) {
+            foreach ($rows as $index => $row) {
                 $wisata = trim((string) ($row['wisata'] ?? ''));
                 $ulasan = trim((string) ($row['ulasan'] ?? ''));
                 $tanggal = $this->normalizeCsvDate($row['tanggal'] ?? null);
+                $rating = $this->normalizeRating($row['rating'] ?? null);
+                $isRatingOnly = false;
+
+                if ($ulasan === '' && $rating !== null) {
+                    $ulasan = '[Tanpa teks]';
+                    $isRatingOnly = true;
+                }
 
                 if ($wisata === '' || $ulasan === '' || !$tanggal) {
                     $skipped++;
@@ -153,7 +160,11 @@ class UlasanController extends Controller
                 }
 
                 $reviewer = trim((string) ($row['reviewer'] ?? 'anonymous')) ?: 'anonymous';
-                $rating = $this->normalizeRating($row['rating'] ?? null);
+                if ($isRatingOnly && $reviewer === 'anonymous') {
+                    $reviewer = 'anonymous-csv-' . ($index + 1);
+                }
+                $periodeTanggal = Carbon::parse($tanggal)->startOfMonth();
+                $periodeId = $this->getOrCreatePeriode($periodeTanggal ?: $periodeBulan);
 
                 $exists = DB::table('ulasan')
                     ->where('wisata', $wisata)
@@ -180,6 +191,7 @@ class UlasanController extends Controller
                     'updated_at' => now(),
                 ]);
 
+                $periodeIds[$periodeId] = $periodeId;
                 $inserted++;
             }
         });
@@ -189,17 +201,26 @@ class UlasanController extends Controller
                 ->with('error', 'Import selesai, tetapi tidak ada data baru yang masuk. Baris kosong/duplikat dilewati: ' . $skipped . '.');
         }
 
-        $analisis = $this->runPythonScript(base_path('scraper/analisis.py'), 900, [
-            '--periode-id', (string) $periodeId,
-        ]);
+        foreach ($periodeIds as $periodeId) {
+            $analisis = $this->runPythonScript(base_path('scraper/analisis.py'), 900, [
+                '--periode-id', (string) $periodeId,
+            ]);
 
-        if (!$analisis['success']) {
-            return redirect()->route('riwayat.index')
-                ->with('error', 'Import berhasil, tetapi analisis gagal: ' . $analisis['output']);
+            if (!$analisis['success']) {
+                return redirect()->route('riwayat.index')
+                    ->with('error', 'Import berhasil, tetapi analisis gagal: ' . $analisis['output']);
+            }
         }
 
+        $periodeLabels = DB::table('periode_analisis')
+            ->whereIn('id', array_values($periodeIds))
+            ->orderBy('tahun')
+            ->orderBy('bulan')
+            ->pluck('nama')
+            ->implode(', ');
+
         return redirect()->route('riwayat.index')
-            ->with('success', 'Import CSV historis berhasil. Data masuk: ' . $inserted . ', dilewati: ' . $skipped . ', periode: ' . $periodeBulan->translatedFormat('F Y') . '.');
+            ->with('success', 'Import CSV historis berhasil. Data masuk: ' . $inserted . ', dilewati: ' . $skipped . ', periode: ' . $periodeLabels . '.');
     }
 
     public function ambilData(Request $request)
