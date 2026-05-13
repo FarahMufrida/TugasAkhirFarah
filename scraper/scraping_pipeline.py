@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import argparse
 import os
+
+if 'PATH' not in os.environ:
+    os.environ['PATH'] = r"C:\Windows\System32;C:\Windows"
+
+
 import json
 import re
 import sys
@@ -11,7 +16,9 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 from urllib import error, parse, request
 
-import pymysql
+
+# import pymysql
+import mysql.connector
 
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
@@ -143,7 +150,7 @@ def make_connection(config):
     if config["connection"] == "sqlite":
         return sqlite3.connect(config["database"])
 
-    return pymysql.connect(
+    return mysql.connector.connect(
         host=config["host"],
         port=config["port"],
         user=config["user"],
@@ -295,6 +302,7 @@ def build_chrome_options(config):
     options.add_argument("--window-size=1366,900")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--no-sandbox")
     options.add_argument("--no-first-run")
     options.add_argument("--no-default-browser-check")
 

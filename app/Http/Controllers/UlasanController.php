@@ -339,12 +339,55 @@ class UlasanController extends Controller
             ->with('success', 'Analisis berhasil dijalankan.');
     }
 
+    // private function runPythonScript(string $scriptPath, int $timeout, array $arguments = []): array
+    // {
+    //     $this->allowLongRunningRequest();
+
+    //     $pythonPath = env('PYTHON_PATH', 'python3');
+    //     $process = new Process(array_merge([$pythonPath, $scriptPath], $arguments), base_path());
+    //     $process->setTimeout($timeout);
+
+    //     try {
+    //         $process->run();
+    //         $output = trim($process->getOutput() . PHP_EOL . $process->getErrorOutput());
+
+    //         return [
+    //             'success' => $process->isSuccessful(),
+    //             'output' => $output !== '' ? $output : 'Tidak ada output dari proses Python.',
+    //         ];
+    //     } catch (Throwable $exception) {
+    //         return [
+    //             'success' => false,
+    //             'output' => $exception->getMessage(),
+    //         ];
+    //     }
+    // }
     private function runPythonScript(string $scriptPath, int $timeout, array $arguments = []): array
     {
         $this->allowLongRunningRequest();
 
-        $pythonPath = env('PYTHON_PATH', 'python3');
-        $process = new Process(array_merge([$pythonPath, $scriptPath], $arguments), base_path());
+        // 1. Pastikan pakai 'python' bukan 'python3' untuk Windows
+        $pythonPath = env('PYTHON_PATH', 'python'); 
+
+        // 2. Suntikkan variabel sistem Windows agar Python tidak eror 10106 saat dijalankan dari web
+        // $envVars = array_merge($_SERVER, $_ENV, [
+        //     'PATH' => getenv('PATH') ?: 'C:\\Windows\\System32;C:\\Windows',
+        //     'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
+        //     'windir' => getenv('windir') ?: 'C:\\Windows',
+        // ]);
+        // 2. Suntikkan variabel sistem Windows secara lengkap
+        $envVars = array_merge($_SERVER, $_ENV, [
+            'PATH' => getenv('PATH') ?: 'C:\\Windows\\System32;C:\\Windows',
+            'SystemRoot' => getenv('SystemRoot') ?: 'C:\\Windows',
+            'windir' => getenv('windir') ?: 'C:\\Windows',
+            'USERPROFILE' => getenv('USERPROFILE') ?: 'C:\\Users\\Mufrida Farah',
+            'LOCALAPPDATA' => getenv('LOCALAPPDATA') ?: 'C:\\Users\\Mufrida Farah\\AppData\\Local',
+            'TEMP' => getenv('TEMP') ?: 'C:\\Users\\Mufrida Farah\\AppData\\Local\\Temp',
+            'TMP' => getenv('TMP') ?: 'C:\\Users\\Mufrida Farah\\AppData\\Local\\Temp',
+        ]);
+
+        // 3. Masukkan $envVars ke parameter ketiga Process
+        $process = new Process(array_merge([$pythonPath, $scriptPath], $arguments), base_path(), $envVars);
         $process->setTimeout($timeout);
 
         try {
