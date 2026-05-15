@@ -67,6 +67,13 @@ class DashboardController extends Controller
     $destinasi = $tab === 'rekomendasi' ? $request->destinasi : null;
 
     // ================================================================
+    // PERIODE BULAN YANG DIPILIH
+    // ================================================================
+    $periodeBulan = $request->input('periode_bulan', now()->format('Y-m'));
+
+    [$tahun, $bulan] = explode('-', $periodeBulan);
+
+    // ================================================================
     // AMBIL SEMUA PERIODE & PERIODE AKTIF
     // ================================================================
     $periodeList = DB::table('periode_analisis as p')
@@ -83,11 +90,21 @@ class DashboardController extends Controller
         ->orderBy('p.id', 'desc')
         ->select('p.*')
         ->get();
-    $availablePeriodeIds = $periodeList->pluck('id')->map(fn($id) => (string) $id);
-    $periodeAktif  = $request->periode_id && $availablePeriodeIds->contains((string) $request->periode_id)
-        ? $periodeList->firstWhere('id', (int) $request->periode_id)
-        : $periodeList->first();
-    $periodeId     = $periodeAktif->id ?? null;
+
+    // Cocokkan pakai kolom bulan & tahun
+    $periodeAktif = $periodeList->first(function ($p) use ($tahun, $bulan) {
+        return $p->tahun == (int)$tahun && $p->bulan == (int)$bulan;
+    });
+
+    // Jika tidak ada data di bulan tsb
+    $noDataPesan = null;
+    if (!$periodeAktif) {
+        $namaBulanDipilih = \Carbon\Carbon::createFromDate($tahun, $bulan, 1)
+            ->locale('id')->isoFormat('MMMM YYYY');
+        $noDataPesan = "Tidak ada data untuk bulan {$namaBulanDipilih}.";
+    }
+
+    $periodeId = $periodeAktif->id ?? null;
 
     $evaluasi = DB::table('evaluasi_model')
         ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
@@ -345,8 +362,9 @@ class DashboardController extends Controller
         'kataDominan',
         'saranPerbaikan',
         'prioritas',
-        'periodeList',    // ← tambahan
-        'periodeAktif',   // ← tambahan
+        'periodeList',
+        'periodeAktif',
+        'noDataPesan',  // ← tambahan baru
     ))->with([
         'scraperDestinations' => $this->scraperDestinations(),
     ]);

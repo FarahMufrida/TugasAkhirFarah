@@ -237,6 +237,43 @@ input{
         width:150px;
     }
 }
+
+@media(max-width:900px){
+    .container{
+        flex-direction:column;
+        height:auto;
+    }
+
+    .left{
+        width:100%;
+        padding:40px;
+    }
+
+    .right{
+        width:100%;
+        height:260px;
+    }
+
+    .overlay p{
+        font-size:20px;
+    }
+
+    .logo img{
+        width:150px;
+    }
+}
+
+/* HILANGKAN ICON PASSWORD BAWAAN BROWSER */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+    display: none;
+}
+
+input::-ms-reveal,
+input::-ms-clear {
+    display: none;
+}
+
 </style>
 </head>
 

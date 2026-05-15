@@ -17,7 +17,9 @@
             <form action="{{ route('ulasan.ambil') }}" method="POST" class="flex flex-col md:flex-row gap-3 md:items-center">
                 @csrf
                 <input type="hidden" name="redirect_to" value="ulasan">
-                <input type="month" name="periode_bulan" value="{{ now()->format('Y-m') }}"
+                <input type="month" name="periode_bulan" value="{{ $periodeAktif
+                ? $periodeAktif->tahun . '-' . str_pad($periodeAktif->bulan, 2, '0', STR_PAD_LEFT)
+                : now()->format('Y-m') }}"
                     class="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm min-w-[150px]">
                 <select name="wisata" class="border rounded-lg pl-3 pr-9 py-2 text-sm bg-white shadow-sm min-w-[220px]">
                     <option value="">Semua Lokasi</option>

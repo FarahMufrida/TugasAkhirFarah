@@ -15,6 +15,14 @@
             {{ session('error') }}
         </div>
     @endif
+
+    {{-- PESAN TIDAK ADA DATA --}}
+    @if($noDataPesan ?? null)
+        <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 mb-6 rounded flex items-center gap-2">
+            <span>📅</span> <span>{{ $noDataPesan }}</span>
+        </div>
+    @endif
+
     @if($periodeAktif && !$hasAnalisis)
         <div class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-6 rounded">
             Data ulasan sudah tersedia, tetapi belum dilakukan analisis sentimen.
@@ -36,20 +44,21 @@
                     Terakhir update: {{ $lastUpdate ? \Carbon\Carbon::parse($lastUpdate)->format('d M Y H:i') : '-' }}
                 </span>
             @endif
-            <form action="{{ route('ulasan.ambil') }}" method="POST" class="flex flex-col md:flex-row gap-3 md:items-center">
-                @csrf
-                <input type="hidden" name="redirect_to" value="dashboard">
-                <input type="month" name="periode_bulan" value="{{ now()->format('Y-m') }}"
+            <form method="GET"
+                action="{{ route('dashboard') }}"
+                class="flex flex-col md:flex-row gap-3 md:items-center">
+
+                {{-- HAPUS hidden periode_id, pakai periode_bulan saja --}}
+
+                <input type="month"
+                    name="periode_bulan"
+                    value="{{ request('periode_bulan', now()->format('Y-m')) }}"
+                    max="{{ now()->format('Y-m') }}"
+                    onchange="this.form.submit()"
                     class="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm min-w-[150px]">
-                <select name="wisata" class="border rounded-lg pl-3 pr-9 py-2 text-sm bg-white shadow-sm min-w-[220px]">
-                    <option value="">Semua Lokasi</option>
-                    @foreach(($scraperDestinations ?? []) as $scraperDestination)
-                        <option value="{{ $scraperDestination }}">{{ $scraperDestination }}</option>
-                    @endforeach
-                </select>
-                <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm shadow">
-                    Ambil Data
-                </button>
+
+               
+
             </form>
         </div>
     </div>

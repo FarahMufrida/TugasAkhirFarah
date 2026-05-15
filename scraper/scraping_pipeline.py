@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 import argparse
 import os
+import tempfile
+
+from networkx import config
+import undetected_chromedriver as uc
+
+from jmespath import Options
+from pandas import options
+from selenium import webdriver
 
 if 'PATH' not in os.environ:
     os.environ['PATH'] = r"C:\Windows\System32;C:\Windows"
@@ -297,6 +305,9 @@ def build_chrome_options(config):
     from selenium.webdriver.chrome.options import Options
 
     options = Options()
+    # options = uc.ChromeOptions()
+    options.binary_location = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+    
     options.add_argument("--lang=id")
     options.add_argument("--accept-language=id-ID,id")
     options.add_argument("--window-size=1366,900")
@@ -306,19 +317,28 @@ def build_chrome_options(config):
     options.add_argument("--no-first-run")
     options.add_argument("--no-default-browser-check")
 
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--remote-debugging-port=9222")
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+
+    options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
+
     if config["headless"]:
         options.add_argument("--headless=new")
     else:
         options.add_argument("--start-maximized")
 
-    if config["user_data_dir"]:
-        options.add_argument(f"--user-data-dir={config['user_data_dir']}")
+    # if config["user_data_dir"]:
+    #     options.add_argument(f"--user-data-dir={config['user_data_dir']}")
 
-    if config["profile"]:
-        options.add_argument(f"--profile-directory={config['profile']}")
+    # if config["profile"]:
+    #     options.add_argument(f"--profile-directory={config['profile']}")
 
     return options
-
+    driver = uc.Chrome(options=options)
 
 def is_login_or_consent_page(driver):
     current_url = driver.current_url.lower()
@@ -729,7 +749,7 @@ def find_reviews_scroll_container(driver, wait):
 
 
 def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config, destinations):
-    from selenium import webdriver
+    
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.support.ui import WebDriverWait
@@ -742,7 +762,18 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
         + ("headless" if config["headless"] else "visible")
         + (f", profile={config['profile']}" if config["profile"] else ""),
     )
-    driver = webdriver.Chrome(options=build_chrome_options(config))
+    
+    from selenium.webdriver.chrome.service import Service
+    from webdriver_manager.chrome import ChromeDriverManager
+
+    # driver = webdriver.Chrome(
+    #     service = Service(r"C:\Users\Mufrida Farah\Downloads\chromedriver-win64\chromedriver-win64\chromedriver.exe")
+    #     driver = webdriver.Chrome(service=service, options=build_chrome_options(config))
+    #     options=build_chrome_options(config)
+    # )
+
+    service = Service(r"C:\Users\Mufrida Farah\Downloads\chromedriver-win64\chromedriver-win64\chromedriver.exe")
+    driver = webdriver.Chrome(service=service, options=build_chrome_options(config))
 
     total_saved = 0
     total_skipped_duplicate = 0
@@ -755,6 +786,13 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
     try:
         for wisata, url in destinations.items():
             log("INFO", f"Scraping: {wisata}")
+
+            main_window = driver.window_handles[0]
+            for handle in driver.window_handles[1:]:
+                driver.switch_to.window(handle)
+                driver.close()
+            driver.switch_to.window(main_window)
+
             driver.get(url)
             wait = WebDriverWait(driver, 25)
             time.sleep(5)
@@ -771,6 +809,14 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
                 log("WARNING", f"Tombol/tab ulasan tidak ditemukan untuk {wisata}")
                 continue
 
+                time.sleep(2)
+                all_windows = driver.window_handles
+                if len(all_windows) > 1:
+                    driver.switch_to.window(all_windows[-1])
+                    log("INFO", f"{wisata}: pindah ke tab baru")
+
+                click_sort_newest(driver)
+
             click_sort_newest(driver)
 
             scrollable_div = find_reviews_scroll_container(driver, wait)
@@ -779,14 +825,29 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
                 continue
 
             last_height = 0
+
             for i in range(config["scroll_limit"]):
-                driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
-                time.sleep(2)
-                new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
-                log("INFO", f"{wisata}: scroll ke-{i + 1}")
-                if new_height == last_height:
+                try:
+                    driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
+
+                    time.sleep(2)
+
+                    new_height = driver.execute_script("return arguments[0].scrollHeight", scrollable_div)
+                    log("INFO", f"{wisata}: scroll ke-{i + 1}")
+
+                    if new_height == last_height:
+                         break
+                    last_height = new_height
+
+                except Exception as e:
+                    log("ERROR", f"{wisata}: Error occurred while scrolling: {e}")
+                   
+                scrollable_div = find_reviews_scroll_container(driver, wait)
+
+                if scrollable_div is None:
                     break
-                last_height = new_height
+
+                continue
 
             for button in driver.find_elements(By.XPATH, "//button[contains(text(),'Selengkapnya')]"):
                 try:
@@ -893,7 +954,7 @@ def main():
         log("INFO", "Lokasi scraping: " + ", ".join(destinations.keys()))
         if scraper["filter_date_range"]:
             log("INFO", f"Filter aktif: ulasan {start_date.strftime('%Y-%m-%d')} sampai {end_date.strftime('%Y-%m-%d')}")
-            purge_out_of_range_reviews(cursor, conn, periode_id, start_date, end_date)
+            # purge_out_of_range_reviews(cursor, conn, periode_id, start_date, end_date)
 
         if scraper["provider"] == "apify":
             scrape_with_apify(cursor, conn, periode_id, start_date, end_date, scraper, destinations)
