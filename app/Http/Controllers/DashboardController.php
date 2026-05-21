@@ -158,15 +158,28 @@ class DashboardController extends Controller
     // ================================================================
     // CHART DATA
     // ================================================================
-    $chartSentimen = $hasAnalisis
-        ? DB::table('hasil_analisis')
-            ->select('sentimen', DB::raw('count(*) as total'))
-            ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
-            ->when($wisata && $wisata != 'Semua Destinasi', fn($q) => $q->where('wisata', $wisata))
-            ->groupBy('sentimen')
-            ->orderByRaw("FIELD(sentimen, 'positif', 'negatif', 'netral')")
-            ->get()
-        : collect();
+    // $chartSentimen = $hasAnalisis
+    //     ? DB::table('hasil_analisis')
+    //         ->select('sentimen', DB::raw('count(*) as total'))
+    //         ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
+    //         ->when($wisata && $wisata != 'Semua Destinasi', fn($q) => $q->where('wisata', $wisata))
+    //         ->groupBy('sentimen')
+    //         ->orderByRaw("FIELD(sentimen, 'positif', 'negatif', 'netral')")
+    //         ->get()
+    //     : collect();
+
+    $rawSentimen = DB::table('hasil_analisis')
+    ->select('sentimen', DB::raw('count(*) as total'))
+    ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
+    ->when($wisata && $wisata != 'Semua Destinasi', fn($q) => $q->where('wisata', $wisata))
+    ->groupBy('sentimen')
+    ->pluck('total', 'sentimen');
+
+    $chartSentimen = collect([
+        ['sentimen' => 'positif', 'total' => $rawSentimen['positif'] ?? 0],
+        ['sentimen' => 'negatif', 'total' => $rawSentimen['negatif'] ?? 0],
+        ['sentimen' => 'netral',  'total' => $rawSentimen['netral'] ?? 0],
+    ]);
 
     $chartDestinasi = $hasAnalisis
         ? DB::table('hasil_analisis')

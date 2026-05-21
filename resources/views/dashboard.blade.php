@@ -8,7 +8,7 @@
     @if(session('success'))
         <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded">
             {{ session('success') }}
-        </div>
+        </div> 
     @endif
     @if(session('error'))
         <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded whitespace-pre-line">
@@ -63,11 +63,14 @@
         </div>
     </div>
 
-    <div x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'dashboard' }" class="mb-6">
+   
+   <div x-data="{ tab: new URLSearchParams(window.location.search).get('tab') || 'dashboard' }"
+     x-init="$nextTick(() => { if (tab === 'dashboard') renderAllCharts() })"
+     class="mb-6">
 
         <!-- TAB -->
         <div class="bg-blue-700 rounded-xl p-1 flex space-x-2 shadow mb-6">
-            <button @click="tab='dashboard'"
+            <button @click="tab='dashboard'; $nextTick(() => renderAllCharts())"
                 :class="tab==='dashboard' ? 'bg-white text-blue-700 shadow' : 'text-white hover:bg-blue-600'"
                 class="flex-1 py-3 rounded-lg text-sm font-medium transition">
                 Dashboard Sentara
@@ -167,19 +170,31 @@
 {{-- SCRIPTS --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-<script>
-document.addEventListener("DOMContentLoaded", function () {
 
+<script>
+const pieData = @json($chartSentimen);
+const destinationData = @json($chartDestinasi);
+const text = @json($allText);
+
+function renderAllCharts() {
     // PIE CHART
-    const pieData = JSON.parse('{!! json_encode($chartSentimen) !!}');
-    const pieCanvas = document.getElementById('pieChart');
-    if (window.pieChartInstance) window.pieChartInstance.destroy();
-    window.pieChartInstance = new Chart(pieCanvas, {
+  const pieCanvas = document.getElementById('pieChart');
+if (pieCanvas) {
+    if (window.pieChartInstance) {
+        window.pieChartInstance.destroy();
+        window.pieChartInstance = null;
+    }
+
+    // Reset canvas dengan clone agar benar-benar bersih
+    const newPie = pieCanvas.cloneNode(false);
+    pieCanvas.parentNode.replaceChild(newPie, pieCanvas);
+
+    window.pieChartInstance = new Chart(newPie, {  // <-- newPie, bukan pieCanvas
         type: 'pie',
         data: {
             labels: pieData.map(i => i.sentimen),
             datasets: [{
-                data: pieData.map(i => i.total),
+                data: pieData.map(i => Number(i.total)),
                 backgroundColor: ['#3B82F6', '#EF4444', '#F59E0B']
             }]
         },
@@ -189,12 +204,15 @@ document.addEventListener("DOMContentLoaded", function () {
             animation: false
         }
     });
+}
 
-    // BAR CHART SENTIMEN PER DESTINASI
-    const destinationData = @json($chartDestinasi);
+    // BAR CHART
     const destinationCanvas = document.getElementById('destinationChart');
     if (destinationCanvas) {
-        if (window.destinationChartInstance) window.destinationChartInstance.destroy();
+        if (window.destinationChartInstance) {
+            window.destinationChartInstance.destroy();
+            window.destinationChartInstance = null;
+        }
         window.destinationChartInstance = new Chart(destinationCanvas, {
             type: 'bar',
             data: {
@@ -234,12 +252,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     legend: {
                         position: 'top',
                         align: 'center',
-                        labels: {
-                            boxWidth: 38,
-                            boxHeight: 10,
-                            color: '#4B5563',
-                            font: { size: 12 },
-                        },
+                        labels: { boxWidth: 38, boxHeight: 10, color: '#4B5563', font: { size: 12 } },
                     },
                     tooltip: {
                         callbacks: {
@@ -250,19 +263,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 scales: {
                     x: {
                         grid: { color: 'rgba(156, 163, 175, 0.22)' },
-                        ticks: {
-                            color: '#4B5563',
-                            maxRotation: 14,
-                            minRotation: 14,
-                            font: { size: 12 },
-                        },
+                        ticks: { color: '#4B5563', maxRotation: 14, minRotation: 14, font: { size: 12 } },
                     },
                     y: {
                         beginAtZero: true,
-                        ticks: {
-                            color: '#4B5563',
-                            precision: 0,
-                        },
+                        ticks: { color: '#4B5563', precision: 0 },
                         grid: { color: 'rgba(156, 163, 175, 0.28)' },
                     },
                 },
@@ -272,8 +277,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // WORD CLOUD tanpa library eksternal agar tetap tampil stabil.
-    const text = @json($allText);
+    // WORD CLOUD
     const wordCloud = document.getElementById('wordCloud');
     const stopwords = new Set([
         'yang','dan','dari','untuk','dengan','ini','itu','tidak','ada','juga',
@@ -304,9 +308,9 @@ document.addEventListener("DOMContentLoaded", function () {
             }).join('');
         }
     }
-
-});
+}
 </script>
+
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {

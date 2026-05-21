@@ -22,7 +22,7 @@ class RekomendasiController extends Controller
                 'tip'     => 'Tambah tempat sampah & jadwal pembersihan rutin.',
             ],
         ],
-        'Parkir' => [
+        'Aksesibilitas' => [
             'keywords' => ['parkir', 'lahan parkir', 'tempat parkir', 'parkiran', 'motor', 'mobil'],
             'color'    => 'orange',
             'icon'     => '🚗',
@@ -52,16 +52,7 @@ class RekomendasiController extends Controller
                 'tip'     => 'Fasilitas lengkap & terawat meningkatkan kepuasan.',
             ],
         ],
-        'Keramaian' => [
-            'keywords' => ['ramai', 'macet', 'antri', 'sesak', 'penuh', 'padat', 'berdesakan'],
-            'color'    => 'blue',
-            'icon'     => '👥',
-            'saran'    => [
-                'actions' => ['Atur kapasitas pengunjung', 'Sistem antrean', 'Jam kunjungan fleksibel'],
-                'dampak'  => 'Pengalaman pengunjung lebih nyaman',
-                'tip'     => 'Manajemen kapasitas pengunjung lebih baik.',
-            ],
-        ],
+        
     ];
 
     public function index(Request $request)

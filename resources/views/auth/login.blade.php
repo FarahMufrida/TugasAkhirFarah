@@ -288,6 +288,19 @@ input::-ms-clear {
             <img src="{{ asset('images/logo-sentara.png') }}">
         </div>
 
+        @if ($errors->any())
+        <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+        <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Login Gagal',
+            text: 'Email atau password yang dimasukkan salah.',
+            confirmButtonColor: '#2d5be3'
+        });
+        </script>
+        @endif
+
         <div class="title">
             Selamat Datang <span>Kembali!</span>
         </div>

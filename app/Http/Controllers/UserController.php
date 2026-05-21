@@ -110,14 +110,14 @@ class UserController extends Controller
         'password' => 'required|min:8|confirmed',
     ]);
 
-    User::create([
+       User::create([
         'name'     => $request->name,
         'email'    => $request->email,
         'role'     => $request->role,
         'password' => bcrypt($request->password),
     ]);
 
-    return redirect()->route('kelola-pengguna.index')
+        return redirect()->route('kelola-pengguna.index')
         ->with('success', 'Pengguna berhasil ditambahkan.');
 }
 }

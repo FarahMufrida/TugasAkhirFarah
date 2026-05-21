@@ -24,13 +24,15 @@ class UlasanController extends Controller
                     ->from('hasil_analisis as h')
                     ->whereColumn('h.periode_id', 'p.id');
             })
-            ->orderBy('p.id', 'desc')
+            ->orderBy('p.tahun', 'desc')
+            ->orderBy('p.bulan', 'desc')
+            // ->orderBy('p.id', 'desc')
             ->select('p.*')
             ->get();
 
         $availablePeriodeIds = $periodeList->pluck('id')->map(fn($id) => (string) $id);
         $requestedPeriodeId = $request->filled('periode_id') ? (string) $request->periode_id : null;
-        $latestFilledPeriodeId = $periodeList->first()->id ?? null;
+        $latestFilledPeriodeId = $periodeList->sortByDesc('id')->first()->id ?? null;
         $periodeId = $request->filled('periode_id')
             && $availablePeriodeIds->contains($requestedPeriodeId)
             ? $requestedPeriodeId

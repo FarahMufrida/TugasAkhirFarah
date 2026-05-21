@@ -114,7 +114,7 @@ def db_config():
         "connection": connection,
         "host": env_value(env, "DB_HOST", "127.0.0.1"),
         "port": int(env_value(env, "DB_PORT", "3306")),
-        "database": env_value(env, "DB_DATABASE", "sentara"),
+        "database": env_value(env, "DB_DATABASE", "analisis_sentimen"),
         "user": env_value(env, "DB_USERNAME", "root"),
         "password": env_value(env, "DB_PASSWORD", ""),
     }
@@ -277,10 +277,10 @@ def get_or_create_period(cursor, conn, start_date, end_date):
 
 
 DESTINATIONS = {
-    "Pantai Papuma": "https://www.google.com/maps/search/?api=1&query=Pantai%20Papuma%20Jember",
-    "Pantai Watu Ulo": "https://www.google.com/maps/search/?api=1&query=Pantai%20Watu%20Ulo%20Jember",
-    "Teluk Love": "https://www.google.com/maps/search/?api=1&query=Teluk%20Love%20Jember",
-    "Kebun Teh Gunung Gambir": "https://www.google.com/maps/search/?api=1&query=Kebun%20Teh%20Gunung%20Gambir%20Jember",
+    "Pantai Papuma": "https://www.google.com/maps/place/Pantai+Papuma/@-8.4310054,113.5508204,16z/data=!4m7!3m6!1s0x2dd682a6a4b5cd8d:0xb9c242f3a09e2d2e!4b1!8m2!3d-8.4300871!4d113.5536464!16s%2Fg%2F11bwy_gg5k?authuser=0&entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D",
+    "Pantai Watu Ulo": "https://www.google.com/maps/place/Pantai+Watu+Ulo/@-8.4252967,113.5515972,15z/data=!4m8!3m7!1s0x2dd69d2fffffffff:0x6f3d7097accf3209!8m2!3d-8.425297!4d113.561897!9m1!1b1!16s%2Fg%2F120m19h0?authuser=0&entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D",
+    "Teluk Love": "https://www.google.com/maps/place/Teluk+Love/@-8.4410549,113.581323,17z/data=!3m1!4b1!4m6!3m5!1s0x2dd6942520c45715:0x3cabb1f5dd90a01b!8m2!3d-8.4410549!4d113.5838979!16s%2Fg%2F11ckkqq_1b?authuser=0&entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D",
+    "Kebun Teh Gunung Gambir": "https://www.google.com/maps/place/Wisata+kebun+teh+gunung+gambir/@-8.0351906,113.4389961,17z/data=!4m7!3m6!1s0x2dd6f551f90c0c8f:0x3d1a62be1e269d12!4b1!8m2!3d-8.0351906!4d113.441571!16s%2Fg%2F11tjmzk404?authuser=0&entry=ttu&g_ep=EgoyMDI2MDUxMy4wIKXMDSoASAFQAw%3D%3D",
 }
 
 
@@ -303,6 +303,7 @@ def selected_destinations(wisata_name):
 
 def build_chrome_options(config):
     from selenium.webdriver.chrome.options import Options
+    import tempfile
 
     options = Options()
     # options = uc.ChromeOptions()
@@ -310,7 +311,6 @@ def build_chrome_options(config):
     
     options.add_argument("--lang=id")
     options.add_argument("--accept-language=id-ID,id")
-    options.add_argument("--window-size=1366,900")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--no-sandbox")
@@ -326,8 +326,12 @@ def build_chrome_options(config):
 
     options.add_argument(f"--user-data-dir={tempfile.mkdtemp()}")
 
-    if config["headless"]:
+    # User agent supaya dianggap browser asli
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+    if config.get("headless"):
         options.add_argument("--headless=new")
+        options.add_argument("--window-size=1920,1080")
     else:
         options.add_argument("--start-maximized")
 
@@ -405,7 +409,7 @@ def click_first_search_result_if_needed(driver):
         for result in results:
             if result.is_displayed():
                 driver.execute_script("arguments[0].click();", result)
-                time.sleep(5)
+                time.sleep(10)
                 log("INFO", "Hasil pencarian Google Maps pertama dibuka.")
                 return True
     except Exception as exc:
@@ -669,22 +673,31 @@ def click_reviews_tab(driver, wait, wisata, manual_login_timeout=0):
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
 
-    candidates = [
-        "//div[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
-        "//div[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
-        "//button[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
-        "//button[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
-        "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan') and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tulis')) and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'write'))]",
-        "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review') and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'write'))]",
-    ]
+    # candidates = [
+    #     "//div[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
+    #     "//div[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
+    #     "//button[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan')]",
+    #     "//button[@role='tab'][contains(translate(., 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review')]",
+    #     "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'ulasan') and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'tulis')) and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'write'))]",
+    #     "//button[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'review') and not(contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'write'))]",
+    # ]
 
+    possible_xpaths = [
+        "//button[contains(@aria-label, 'Ulasan untuk')]",
+        "//button[contains(., 'Ulasan')]",
+        "//div[@role='tab'][contains(., 'Ulasan')]",
+        "//button[contains(@aria-label, 'Reviews')]"
+    ]
+    
     try:
-        wait.until(EC.presence_of_all_elements_located((By.XPATH, "//button | //div[@role='tab']")))
+        # wait.until(EC.presence_of_all_elements_located((By.XPATH, "//button | //div[@role='tab']")))
+        all_btns = driver.find_elements(By.XPATH, "//button | //div[@role='tab']")
+        time.sleep(3)
     except Exception:
         pass
 
     def try_click_reviews_tab():
-        for xpath in candidates:
+        for xpath in possible_xpaths:
             try:
                 elements = driver.find_elements(By.XPATH, xpath)
                 for element in elements:
@@ -739,6 +752,12 @@ def find_reviews_scroll_container(driver, wait):
         "//div[.//div[@data-review-id]]",
     ]
 
+    # xpaths = [
+    # "//div[contains(@class, 'm6U624-v79jQ-le0U9b')]", # Class kontainer ulasan umum
+    # "//div[@role='main' and contains(@aria-label, 'Ulasan')]",
+    # "//div[contains(@aria-label, 'Ulasan untuk')]"
+    # ]
+
     for xpath in xpaths:
         try:
             return wait.until(EC.presence_of_element_located((By.XPATH, xpath)))
@@ -772,8 +791,10 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
     #     options=build_chrome_options(config)
     # )
 
+
     service = Service(r"C:\Users\Mufrida Farah\Downloads\chromedriver-win64\chromedriver-win64\chromedriver.exe")
-    driver = webdriver.Chrome(service=service, options=build_chrome_options(config))
+    opts = build_chrome_options(config)
+    driver = webdriver.Chrome(service=service, options=opts)
 
     total_saved = 0
     total_skipped_duplicate = 0
@@ -826,6 +847,7 @@ def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config,
 
             last_height = 0
 
+            driver.execute_script("arguments[0].focus();", scrollable_div)
             for i in range(config["scroll_limit"]):
                 try:
                     driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", scrollable_div)
