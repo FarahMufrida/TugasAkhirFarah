@@ -114,7 +114,7 @@ def db_config():
         "connection": connection,
         "host": env_value(env, "DB_HOST", "127.0.0.1"),
         "port": int(env_value(env, "DB_PORT", "3306")),
-        "database": env_value(env, "DB_DATABASE", "analisis_sentimen"),
+        "database": env_value(env, "DB_DATABASE", "sistem_analisis"),
         "user": env_value(env, "DB_USERNAME", "root"),
         "password": env_value(env, "DB_PASSWORD", ""),
     }
@@ -768,7 +768,6 @@ def find_reviews_scroll_container(driver, wait):
 
 
 def scrape_with_selenium(cursor, conn, periode_id, start_date, end_date, config, destinations):
-    
     from selenium.webdriver.common.by import By
     from selenium.webdriver.support import expected_conditions as EC
     from selenium.webdriver.support.ui import WebDriverWait

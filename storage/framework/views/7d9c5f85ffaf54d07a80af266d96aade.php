@@ -1,22 +1,22 @@
-@extends('layouts.sentara')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 
 <div class="space-y-6">
 
-    {{-- ALERT SUCCESS --}}
-    @if(session('success'))
+    
+    <?php if(session('success')): ?>
     <div class="bg-green-50 border border-green-200 text-green-700 px-5 py-4 rounded-2xl">
-        {{ session('success') }}
-    </div>
-    @endif
+        <?php echo e(session('success')); ?>
 
-    {{-- ALERT ERROR --}}
-    @if(session('error'))
-    <div class="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl">
-        {{ session('error') }}
     </div>
-    @endif
+    <?php endif; ?>
+
+    
+    <?php if(session('error')): ?>
+    <div class="bg-red-50 border border-red-200 text-red-700 px-5 py-4 rounded-2xl">
+        <?php echo e(session('error')); ?>
+
+    </div>
+    <?php endif; ?>
 
     <!-- HEADER -->
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -57,52 +57,53 @@
 
                 <tbody class="text-slate-700">
 
-                    @forelse ($users as $user)
+                    <?php $__empty_1 = true; $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
 
                     <tr class="border-b hover:bg-slate-50 transition">
 
-                        <td class="py-4">{{ $loop->iteration }}</td>
+                        <td class="py-4"><?php echo e($loop->iteration); ?></td>
 
                         <td class="py-4">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
-                                    {{ strtoupper(substr($user->name, 0, 2)) }}
+                                    <?php echo e(strtoupper(substr($user->name, 0, 2))); ?>
+
                                 </div>
-                                <span class="font-medium">{{ $user->name }}</span>
+                                <span class="font-medium"><?php echo e($user->name); ?></span>
                             </div>
                         </td>
 
-                        <td class="py-4">{{ $user->email }}</td>
+                        <td class="py-4"><?php echo e($user->email); ?></td>
 
                         <td class="py-4">
-                            @if($user->role == 'admin')
+                            <?php if($user->role == 'admin'): ?>
                             <span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">Admin</span>
-                            @else
+                            <?php else: ?>
                             <span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">Staff</span>
-                            @endif
+                            <?php endif; ?>
                         </td>
 
                         <td class="py-4">
                             <span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">Aktif</span>
                         </td>
 
-                        <td class="py-4">{{ $user->updated_at->format('d M Y, H:i') }}</td>
+                        <td class="py-4"><?php echo e($user->updated_at->format('d M Y, H:i')); ?></td>
 
                         <td class="py-4">
                             <div class="flex justify-center gap-2">
 
                                 <button
-                                    onclick="openEditModal('{{ $user->id }}', '{{ addslashes($user->name) }}', '{{ $user->email }}', '{{ $user->role }}')"
+                                    onclick="openEditModal('<?php echo e($user->id); ?>', '<?php echo e(addslashes($user->name)); ?>', '<?php echo e($user->email); ?>', '<?php echo e($user->role); ?>')"
                                     class="w-11 h-11 rounded-2xl border border-blue-200 text-blue-600 hover:bg-blue-50 flex items-center justify-center transition"
                                     title="Edit Pengguna">✏️</button>
 
                                 <button
-                                    onclick="openPasswordModal('{{ $user->id }}')"
+                                    onclick="openPasswordModal('<?php echo e($user->id); ?>')"
                                     class="w-11 h-11 rounded-2xl border border-amber-200 text-amber-500 hover:bg-amber-50 flex items-center justify-center transition"
                                     title="Reset Password">🔒</button>
 
                                 <button
-                                    onclick="openDeleteModal('{{ $user->id }}', '{{ $user->role }}')"
+                                    onclick="openDeleteModal('<?php echo e($user->id); ?>', '<?php echo e($user->role); ?>')"
                                     class="w-11 h-11 rounded-2xl border border-red-200 text-red-500 hover:bg-red-50 flex items-center justify-center transition"
                                     title="Hapus Pengguna">🗑️</button>
 
@@ -111,7 +112,7 @@
 
                     </tr>
 
-                    @empty
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
 
                     <tr>
                         <td colspan="7" class="py-10 text-center text-slate-400">
@@ -119,7 +120,7 @@
                         </td>
                     </tr>
 
-                    @endforelse
+                    <?php endif; ?>
 
                 </tbody>
 
@@ -130,10 +131,12 @@
         <!-- PAGINATION -->
         <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6">
             <p class="text-sm text-slate-500">
-                Menampilkan {{ $users->firstItem() ?? 0 }} - {{ $users->lastItem() ?? 0 }}
-                dari {{ $users->total() }} pengguna
+                Menampilkan <?php echo e($users->firstItem() ?? 0); ?> - <?php echo e($users->lastItem() ?? 0); ?>
+
+                dari <?php echo e($users->total()); ?> pengguna
             </p>
-            {{ $users->links() }}
+            <?php echo e($users->links()); ?>
+
         </div>
 
     </div>
@@ -156,10 +159,10 @@
                 class="text-slate-400 hover:text-slate-700 text-2xl leading-none ml-4 flex-shrink-0">×</button>
         </div>
 
-        {{-- SESUDAH --}}
+        
 <form method="POST" action="/kelola-pengguna" id="tambahForm">
 
-            @csrf
+            <?php echo csrf_field(); ?>
 
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Nama Pengguna</label>
@@ -228,13 +231,14 @@
         </div>
 
         <form method="POST" id="editForm">
-            @csrf
-            @if ($errors->any())
+            <?php echo csrf_field(); ?>
+            <?php if($errors->any()): ?>
                 <div class="mb-4 rounded-2xl bg-red-50 border border-red-200 text-red-600 px-4 py-3 text-sm">
-                    {{ $errors->first() }}
+                    <?php echo e($errors->first()); ?>
+
                 </div>
-            @endif
-            @method('PUT')
+            <?php endif; ?>
+            <?php echo method_field('PUT'); ?>
 
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Nama Pengguna</label>
@@ -296,8 +300,8 @@
         </div>
 
         <form method="POST" id="passwordForm">
-            @csrf
-            @method('PUT')
+            <?php echo csrf_field(); ?>
+            <?php echo method_field('PUT'); ?>
 
             <div class="mb-4">
                 <label class="block text-sm font-semibold text-slate-700 mb-2">Password Baru</label>
@@ -341,8 +345,8 @@
         </p>
 
         <form method="POST" id="deleteForm" class="mt-6">
-            @csrf
-            @method('DELETE')
+            <?php echo csrf_field(); ?>
+            <?php echo method_field('DELETE'); ?>
             <div class="flex gap-3">
                 <button type="button" onclick="closeDeleteModal()"
                     class="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-100 transition">
@@ -434,4 +438,5 @@ function closeAdminAlertModal() {
 
 </script>
 
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.sentara', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\laragon\www\SistemAnalisisSentimen\resources\views/kelolauser/index.blade.php ENDPATH**/ ?>

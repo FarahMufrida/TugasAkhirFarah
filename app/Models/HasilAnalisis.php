@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class HasilAnalisis extends Model
 {
     protected $table = 'hasil_analisis';
+    protected static function booted(){
+        
+    }
 
     protected $fillable = [
         'wisata',

@@ -101,23 +101,23 @@ class UserController extends Controller
             ->with('success', 'Pengguna berhasil dihapus.');
     }
 
-    public function store(Request $request)
+   public function store(Request $request)
 {
     $request->validate([
-        'name'     => 'required|string|max:255',
-        'email'    => 'required|email|unique:users,email',
-        'role'     => 'required|in:admin,staff',
+        'name' => 'required|string|max:255',
+        'email' => 'required|email|unique:users,email',
+        'role' => 'required|in:admin,staff',
         'password' => 'required|min:8|confirmed',
     ]);
 
-       User::create([
-        'name'     => $request->name,
-        'email'    => $request->email,
-        'role'     => $request->role,
-        'password' => bcrypt($request->password),
+    User::create([
+        'name' => $request->name,
+        'email' => $request->email,
+        'role' => $request->role,
+        'password' => Hash::make($request->password),
     ]);
 
-        return redirect()->route('kelola-pengguna.index')
-        ->with('success', 'Pengguna berhasil ditambahkan.');
+    return redirect()->back()->with('success', 'Pengguna berhasil ditambahkan.');
 }
+
 }

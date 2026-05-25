@@ -9,7 +9,7 @@
     $evaluasiTersedia = $evaluasi && $jumlahKelasAnalisis >= 2;
 @endphp
 
-<div class="space-y-6">
+<div class="space-y-4">
 
     {{-- ================= HEADER ================= --}}
     <div class="flex justify-between items-center">
@@ -62,30 +62,43 @@
     
 
     {{-- ================= FILTER ================= --}}
-    <form id="filter-form" class="flex items-center gap-3">
+    <form id="filter-form" method="GET" action="{{ route('dashboard') }}" class="flex gap-2 mb-4">
 
-        <input type="hidden" name="tab" value="analisis">
-        @if(($periodeAktif->id ?? request('periode_id')))
-            <input type="hidden" name="periode_id" value="{{ $periodeAktif->id ?? request('periode_id') }}">
-        @endif
+    <input type="hidden" name="tab" value="analisis">
 
-        <select name="wisata" class="border rounded pl-3 pr-9 py-2 min-w-[220px]">
-            <option value="">Semua Destinasi</option>
-            @foreach(($wisataList ?? collect()) as $wisata)
-                <option value="{{ $wisata }}" {{ request('wisata') == $wisata ? 'selected' : '' }}>
-                    {{ $wisata }}
-                </option>
-            @endforeach
-        </select>
+    <input type="hidden" name="periode_id" value="{{ $periodeAktif->id ?? '' }}">
 
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">
-            Filter
-        </button>
+    <select
+        name="wisata"
+        class="border rounded px-3 py-2"
+    >
 
-    </form>
+        <option value="">Semua Destinasi</option>
+
+        @foreach($wisataList as $item)
+
+            <option
+                value="{{ $item }}"
+                {{ request('wisata') == $item ? 'selected' : '' }}
+            >
+                {{ $item }}
+            </option>
+
+        @endforeach
+
+    </select>
+
+    <button
+        type="submit"
+        class="bg-blue-600 text-white px-4 py-2 rounded"
+    >
+        Filter
+    </button>
+
+</form>
 
     {{-- ================= TABLE ================= --}}
-    <div class="bg-white rounded-xl shadow p-4">
+    <div class="bg-white rounded-xl shadow p-4 h-fit">
 
         <h3 class="font-semibold mb-4">Detail Hasil Analisis Sentimen</h3>
 
@@ -102,7 +115,7 @@
             </thead>
 
             <tbody>
-                @forelse($hasil as $item)
+                 @forelse($hasil as $item)
                     <tr class="border-b">
                         <td>{{ ($hasil->currentPage() - 1) * $hasil->perPage() + $loop->iteration }}</td>
                         <td>{{ $item->wisata }}</td>

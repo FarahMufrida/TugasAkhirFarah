@@ -1,6 +1,4 @@
-@extends('layouts.sentara')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 
 <div class="max-w-7xl mx-auto space-y-6">
 
@@ -15,16 +13,18 @@
         
     </div>
 
-    @if(session('success'))
+    <?php if(session('success')): ?>
         <div class="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded">
-            {{ session('success') }}
+            <?php echo e(session('success')); ?>
+
         </div>
-    @endif
-    @if(session('error'))
+    <?php endif; ?>
+    <?php if(session('error')): ?>
         <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded whitespace-pre-line">
-            {{ session('error') }}
+            <?php echo e(session('error')); ?>
+
         </div>
-    @endif
+    <?php endif; ?>
 
     <div class="bg-white rounded-xl shadow p-6">
         <h3 class="font-semibold text-gray-800 mb-1">Import Data Lama dari CSV</h3>
@@ -32,10 +32,10 @@
             Gunakan untuk memasukkan ulasan historis. Kolom wajib: wisata, rating, ulasan, tanggal. Kolom reviewer boleh ada.
         </p>
 
-        <form action="{{ route('riwayat.import') }}" method="POST" enctype="multipart/form-data"
+        <form action="<?php echo e(route('riwayat.import')); ?>" method="POST" enctype="multipart/form-data"
             class="grid grid-cols-1 md:grid-cols-[180px_1fr_auto] gap-3 md:items-center">
-            @csrf
-            <input type="month" name="periode_bulan" value="{{ now()->format('Y-m') }}"
+            <?php echo csrf_field(); ?>
+            <input type="month" name="periode_bulan" value="<?php echo e(now()->format('Y-m')); ?>"
                 class="border rounded-lg px-3 py-2 text-sm bg-white shadow-sm min-w-[150px]" required>
 
             <input type="file" name="file" accept=".csv,.txt"
@@ -46,11 +46,12 @@
             </button>
         </form>
 
-        @if($errors->any())
+        <?php if($errors->any()): ?>
             <div class="mt-3 text-sm text-red-600">
-                {{ $errors->first() }}
+                <?php echo e($errors->first()); ?>
+
             </div>
-        @endif
+        <?php endif; ?>
     </div>
 
     <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -67,47 +68,50 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y">
-                    @forelse($riwayat as $item)
+                    <?php $__empty_1 = true; $__currentLoopData = $riwayat; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 font-semibold text-gray-800">{{ $item->nama }}</td>
-                            <td class="px-4 py-3 text-center">{{ $item->total_ulasan }}</td>
-                            <td class="px-4 py-3 text-center">{{ $item->total_hasil }}</td>
-                            <td class="px-4 py-3 text-center">{{ $item->total_wisata }}</td>
+                            <td class="px-4 py-3 font-semibold text-gray-800"><?php echo e($item->nama); ?></td>
+                            <td class="px-4 py-3 text-center"><?php echo e($item->total_ulasan); ?></td>
+                            <td class="px-4 py-3 text-center"><?php echo e($item->total_hasil); ?></td>
+                            <td class="px-4 py-3 text-center"><?php echo e($item->total_wisata); ?></td>
                             <td class="px-4 py-3 text-gray-500">
-                                {{ $item->terakhir_analisis ? \Carbon\Carbon::parse($item->terakhir_analisis)->format('d M Y H:i') : '-' }}
+                                <?php echo e($item->terakhir_analisis ? \Carbon\Carbon::parse($item->terakhir_analisis)->format('d M Y H:i') : '-'); ?>
+
                             </td>
                             <td class="px-4 py-3">
                                 <div class="flex flex-wrap justify-center gap-2">
 
-                                    <a href="{{ route('dashboard', ['periode_id' => $item->id, 'tab' => 'analisis']) }}"
+                                    <a href="<?php echo e(route('dashboard', ['periode_id' => $item->id, 'tab' => 'analisis'])); ?>"
                                         class="px-3 py-1 rounded-lg bg-green-50 text-green-600 hover:bg-green-100">
                                         Analisis
                                     </a>
-                                    <a href="{{ route('ulasan.index', ['periode_id' => $item->id]) }}"
+                                    <a href="<?php echo e(route('ulasan.index', ['periode_id' => $item->id])); ?>"
                                         class="px-3 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200">
                                         Ulasan
                                     </a>
                                 </div>
                             </td>
                         </tr>
-                    @empty
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                         <tr>
                             <td colspan="6" class="px-4 py-8 text-center text-gray-400">
                                 Belum ada riwayat analisis. Jalankan Ambil Data terlebih dahulu.
                             </td>
                         </tr>
-                    @endforelse
+                    <?php endif; ?>
                 </tbody>
             </table>
         </div>
 
-        @if($riwayat->hasPages())
+        <?php if($riwayat->hasPages()): ?>
             <div class="p-4">
-                {{ $riwayat->links() }}
+                <?php echo e($riwayat->links()); ?>
+
             </div>
-        @endif
+        <?php endif; ?>
     </div>
 
 </div>
 
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('layouts.sentara', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\laragon\www\SistemAnalisisSentimen\resources\views/ulasan/riwayat.blade.php ENDPATH**/ ?>

@@ -86,7 +86,7 @@ def db_config():
         "connection": connection,
         "host": env_value(env, "DB_HOST", "127.0.0.1"),
         "port": int(env_value(env, "DB_PORT", "3306")),
-        "database": env_value(env, "DB_DATABASE", "sentara"),
+        "database": env_value(env, "DB_DATABASE", "sistem_analisis"),
         "user": env_value(env, "DB_USERNAME", "root"),
         "password": env_value(env, "DB_PASSWORD", ""),
     }
@@ -158,6 +158,7 @@ POSITIF_WORDS = {
     "murah", "asyik", "ramah", "worth", "spektakuler", "memukau",
     "sejuk", "kece", "amazing", "beautiful", "good", "nice", "best",
     "great", "perfect", "recommend", "memuaskan", "menyenangkan", "view",
+    "seru", "enak", "adem",
 }
 
 NEGATIF_WORDS = {
@@ -195,27 +196,45 @@ def preprocess_text(text):
     return stemmer.stem(" ".join(words)).strip()
 
 
+# def label_by_keyword(clean_text):
+#     words = set(clean_text.split())
+#     positive_score = len(words & POSITIF_WORDS)
+#     negative_score = len(words & NEGATIF_WORDS)
+
+#     if positive_score > negative_score:
+#         return "positif"
+#     if negative_score > positive_score:
+#         return "negatif"
+#     return "netral"
+
+
 def label_by_keyword(clean_text):
-    words = set(clean_text.split())
-    positive_score = len(words & POSITIF_WORDS)
-    negative_score = len(words & NEGATIF_WORDS)
+    words = clean_text.split()
+
+    positive_score = sum(1 for word in words if word in POSITIF_WORDS)
+    negative_score = sum(1 for word in words if word in NEGATIF_WORDS)
 
     if positive_score > negative_score:
         return "positif"
-    if negative_score > positive_score:
+
+    elif negative_score > positive_score:
         return "negatif"
+
     return "netral"
 
 
-def make_pseudo_label(row):
-    rating = normalize_rating(row.get("rating"))
-    if rating is not None:
-        if rating >= 4:
-            return "positif"
-        if rating == 3:
-            return "netral"
-        return "negatif"
+# def make_pseudo_label(row):
+#     rating = normalize_rating(row.get("rating"))
+#     if rating is not None:
+#         if rating >= 4:
+#             return "positif"
+#         if rating == 3:
+#             return "netral"
+#         return "negatif"
 
+#     return label_by_keyword(row["ulasan_bersih"])
+
+def make_pseudo_label(row):
     return label_by_keyword(row["ulasan_bersih"])
 
 
@@ -231,10 +250,20 @@ def rating_confidence(value):
 
 
 def apply_rating_priority(row, model_classes=None):
-    rating_label = make_pseudo_label(row)
-    rating = normalize_rating(row.get("rating"))
-    if rating is None:
-        return row["sentimen"], float(row["probabilitas"])
+    sentiment_result = row["sentimen"]
+    probability = float(row["probabilitas"])
+
+    # Jika probabilitas model sangat rendah (di bawah 0.5), baru gunakan rating
+    if probability < 0.5:
+        rating_label = make_pseudo_label(row)
+        return rating_label, 0.5
+    
+    return sentiment_result, probability
+
+    # rating_label = make_pseudo_label(row)
+    # rating = normalize_rating(row.get("rating"))
+    # if rating is None:
+    #     return row["sentimen"], float(row["probabilitas"])
 
     if row["sentimen"] != rating_label:
         log(
@@ -288,9 +317,10 @@ def main():
         df = pd.read_sql(
             prepare_sql(
                 raw_conn,
-                "SELECT id, wisata, reviewer, rating, ulasan, tanggal, periode_id "
-                "FROM ulasan WHERE periode_id = %s",
+                "SELECT u.id, u.wisata, u.reviewer, u.rating, u.ulasan, u.tanggal, u.periode_id "
+                 "FROM ulasan u WHERE u.periode_id = %s AND NOT EXISTS ( SELECT 1 FROM hasil_analisis h WHERE h.ulasan_id = u.id  )"
             ),
+            
             engine,
             params=(periode_id,),
         )
@@ -302,6 +332,8 @@ def main():
         df["ulasan"] = df["ulasan"].astype(str)
         df = df[df["ulasan"].str.strip().ne("")]
         df = df[df["ulasan"].str.strip().ne("0")]
+        df = df[~df["ulasan"].str.contains(r"\[Tanpa teks\]", na=False)]
+        df = df[df["ulasan"].str.len() > 5]
 
         if df.empty:
             fail("Data ulasan kosong setelah validasi teks.")
@@ -359,6 +391,7 @@ def main():
             df["sentimen"] = model.predict(X_all_vec)
             probability_matrix = model.predict_proba(X_all_vec)
             df["probabilitas"] = probability_matrix.max(axis=1)
+            df["probabilitas"] = df["probabilitas"].clip(upper=0.99)
             df["probabilitas_by_class"] = list(probability_matrix)
             final_results = df.apply(lambda row: apply_rating_priority(row, model.classes_), axis=1)
             df["sentimen"] = [result[0] for result in final_results]
@@ -370,11 +403,12 @@ def main():
 
         log("INFO", "Evaluasi memakai pseudo-label dari rating/rule otomatis, bukan label manual.")
 
-        execute(cursor, raw_conn, "DELETE FROM hasil_analisis WHERE periode_id = %s", (periode_id,))
-        execute(cursor, raw_conn, "DELETE FROM evaluasi_model WHERE periode_id = %s", (periode_id,))
+        # execute(cursor, raw_conn, "DELETE FROM hasil_analisis WHERE periode_id = %s", (periode_id,))
+        # execute(cursor, raw_conn, "DELETE FROM evaluasi_model WHERE periode_id = %s", (periode_id,))
 
         hasil_columns = table_columns(cursor, raw_conn, "hasil_analisis")
         insert_columns = [
+            "ulasan_id",
             "wisata",
             "ulasan_asli",
             "ulasan_bersih",
@@ -396,6 +430,7 @@ def main():
 
         for _, row in df.fillna("").iterrows():
             values = [
+                int(row["id"]),
                 str(row["wisata"]),
                 str(row["ulasan"]),
                 str(row["ulasan_bersih"]),
