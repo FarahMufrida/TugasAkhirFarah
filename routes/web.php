@@ -7,6 +7,8 @@ use App\Http\Controllers\UlasanController;
 use App\Http\Controllers\AnalisisController;
 use App\Http\Controllers\RekomendasiController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\Auth\ForgotPasswordController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 
 
 
@@ -15,6 +17,22 @@ use App\Http\Controllers\UserController;
 | ROUTE AWAL
 |--------------------------------------------------------------------------
 */
+
+Route::get('/forgot-password',
+    [ForgotPasswordController::class, 'showLinkRequestForm'])
+    ->name('password.request');
+
+Route::post('/forgot-password',
+    [ForgotPasswordController::class, 'sendResetLinkEmail'])
+    ->name('password.email');
+
+Route::get('/reset-password/{token}',
+    [ResetPasswordController::class, 'showResetForm'])
+    ->name('password.reset');
+
+Route::post('/reset-password-custom',
+    [ResetPasswordController::class, 'reset'])
+    ->name('custom.password.update');
 
 Route::get('/', function () {
     return redirect('/login');

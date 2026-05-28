@@ -294,7 +294,7 @@ class UlasanController extends Controller
 
         if (($validated['redirect_to'] ?? 'dashboard') === 'ulasan') {
             return redirect()->route('ulasan.index', array_filter($redirectParameters))
-                ->with('success', 'Data berhasil diambil dan dianalisis untuk ' . $lokasiLabel . ' periode ' . $periodeBulan->translatedFormat('F Y') . '.');
+                ->with('success', 'Data berhasil diambil' . $lokasiLabel . ' periode ' . $periodeBulan->translatedFormat('F Y') . '.');
         }
 
         if (!empty($validated['wisata'])) {

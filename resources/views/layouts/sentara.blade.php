@@ -14,7 +14,7 @@
 
 <body class="bg-gray-100 overflow-x-hidden">
 
-<div class="min-h-screen flex">
+<div class="h-auto ">
 
 <!-- SIDEBAR -->
 <aside id="sidebar"
