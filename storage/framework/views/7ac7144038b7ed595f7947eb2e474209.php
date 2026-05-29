@@ -278,7 +278,7 @@ table tbody tr:hover { background: #fafafa; }
 </head>
 <body>
 
-{{-- ACTION BAR --}}
+
 <div class="action-bar no-print" id="actionBar">
     <div></div>
     <div class="btn-group">
@@ -288,14 +288,14 @@ table tbody tr:hover { background: #fafafa; }
 
 <div class="container" id="isiLaporan">
 
-    {{-- HERO --}}
+    
     <div class="hero">
         <div class="hero-left">
             <div class="hero-icon">
                 <svg viewBox="0 0 24 24"><path d="M9 12h6m-6 4h6M7 4H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2h-2M9 4a2 2 0 002 2h2a2 2 0 002-2M9 4a2 2 0 012-2h2a2 2 0 012 2" stroke="white" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
             </div>
             <div>
-                {{-- Logo kecil di atas judul --}}
+                
                 <div style="display:inline-flex;align-items:center;gap:5px;background:#1e3a8a;border-radius:6px;padding:3px 10px;margin-bottom:7px;">
                     <span style="color:#fff;font-size:11px;font-weight:900;letter-spacing:1px;">-SENTARA-</span>
                     <span style="color:#93c5fd;font-size:9px;letter-spacing:2px;">JEMBER</span>
@@ -306,20 +306,20 @@ table tbody tr:hover { background: #fafafa; }
         </div>
         <div class="hero-right">
             <div style="color:#6b7280;font-size:11px;">Tahun</div>
-            <div class="year">{{ $tahun }}</div>
+            <div class="year"><?php echo e($tahun); ?></div>
             <div style="color:#6b7280;font-size:11px;margin-top:6px;">Tanggal Cetak</div>
-            <div style="font-weight:600;">{{ now()->format('d M Y H:i') }}</div>
+            <div style="font-weight:600;"><?php echo e(now()->format('d M Y H:i')); ?></div>
         </div>
     </div>
 
-    {{-- RINGKASAN --}}
+    
     <div class="section-title">Ringkasan Tahunan</div>
 
     <div class="cards">
         <div class="card blue">
             <div class="card-info">
                 <div class="card-label">Total Ulasan</div>
-                <div class="card-value">{{ $totalUlasan }}</div>
+                <div class="card-value"><?php echo e($totalUlasan); ?></div>
                 <div class="card-unit">Ulasan</div>
             </div>
             <div class="card-icon">💬</div>
@@ -327,7 +327,7 @@ table tbody tr:hover { background: #fafafa; }
         <div class="card green">
             <div class="card-info">
                 <div class="card-label">Rata-rata Akurasi</div>
-                <div class="card-value" style="font-size:20px;">{{ $akurasi }}%</div>
+                <div class="card-value" style="font-size:20px;"><?php echo e($akurasi); ?>%</div>
                 <div class="card-unit">Akurasi</div>
             </div>
             <div class="card-icon">✅</div>
@@ -335,7 +335,7 @@ table tbody tr:hover { background: #fafafa; }
         <div class="card yellow">
             <div class="card-info">
                 <div class="card-label">Total Wisata Dibahas</div>
-                <div class="card-value">{{ $totalWisata }}</div>
+                <div class="card-value"><?php echo e($totalWisata); ?></div>
                 <div class="card-unit">Wisata</div>
             </div>
             <div class="card-icon">📍</div>
@@ -343,14 +343,14 @@ table tbody tr:hover { background: #fafafa; }
         <div class="card purple">
             <div class="card-info">
                 <div class="card-label">Bulan Dianalisis</div>
-                <div class="card-value">{{ count($rekapBulanan) }}</div>
+                <div class="card-value"><?php echo e(count($rekapBulanan)); ?></div>
                 <div class="card-unit">Bulan</div>
             </div>
             <div class="card-icon">📅</div>
         </div>
     </div>
 
-    {{-- REKAP + DONUT --}}
+    
     <div class="section-title">Rekap Sentimen per Bulan</div>
 
     <div class="grid2">
@@ -367,48 +367,48 @@ table tbody tr:hover { background: #fafafa; }
                     </tr>
                 </thead>
                 <tbody>
-                    @php $totP=0; $totN=0; $totNt=0; $totAll=0; @endphp
-                    @foreach($rekapBulanan as $r)
-                    @php $totP+=$r->positif; $totN+=$r->negatif; $totNt+=$r->netral; $totAll+=$r->total; @endphp
+                    <?php $totP=0; $totN=0; $totNt=0; $totAll=0; ?>
+                    <?php $__currentLoopData = $rekapBulanan; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php $totP+=$r->positif; $totN+=$r->negatif; $totNt+=$r->netral; $totAll+=$r->total; ?>
                     <tr>
-                        <td>{{ $r->bulan }}</td>
-                        <td>{{ $r->total }}</td>
-                        <td class="pos">{{ $r->positif }}</td>
-                        <td class="net">{{ $r->netral }}</td>
-                        <td class="neg">{{ $r->negatif }}</td>
-                        <td><span class="badge-green">{{ number_format(($r->positif/max($r->total,1))*100,2) }}%</span></td>
+                        <td><?php echo e($r->bulan); ?></td>
+                        <td><?php echo e($r->total); ?></td>
+                        <td class="pos"><?php echo e($r->positif); ?></td>
+                        <td class="net"><?php echo e($r->netral); ?></td>
+                        <td class="neg"><?php echo e($r->negatif); ?></td>
+                        <td><span class="badge-green"><?php echo e(number_format(($r->positif/max($r->total,1))*100,2)); ?>%</span></td>
                     </tr>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </tbody>
                 <tfoot>
                     <tr class="tfoot-row">
                         <td>TOTAL / RATA-RATA</td>
-                        <td>{{ $totAll }}</td>
-                        <td class="pos">{{ $totP }}</td>
-                        <td class="net">{{ $totNt }}</td>
-                        <td class="neg">{{ $totN }}</td>
-                        <td><span class="badge-green">{{ $totAll > 0 ? number_format(($totP/$totAll)*100,2) : 0 }}%</span></td>
+                        <td><?php echo e($totAll); ?></td>
+                        <td class="pos"><?php echo e($totP); ?></td>
+                        <td class="net"><?php echo e($totNt); ?></td>
+                        <td class="neg"><?php echo e($totN); ?></td>
+                        <td><span class="badge-green"><?php echo e($totAll > 0 ? number_format(($totP/$totAll)*100,2) : 0); ?>%</span></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
 
         <div class="donut-box">
-            <h4>Distribusi Sentimen Tahun {{ $tahun }}</h4>
+            <h4>Distribusi Sentimen Tahun <?php echo e($tahun); ?></h4>
             <div class="donut-wrap" style="height:220px;">
                 <canvas id="donut"></canvas>
             </div>
         </div>
     </div>
 
-    {{-- TREND --}}
-    <div class="section-title">Trend Sentimen per Bulan ({{ $tahun }})</div>
+    
+    <div class="section-title">Trend Sentimen per Bulan (<?php echo e($tahun); ?>)</div>
 
     <div class="trend-box">
         <canvas id="trend" height="90"></canvas>
     </div>
 
-    {{-- WISATA + KESIMPULAN --}}
+    
     <div class="section-title">Wisata Serpopuler & Kesimpulan</div>
 
     <div class="bottom-grid">
@@ -423,14 +423,14 @@ table tbody tr:hover { background: #fafafa; }
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($wisataPopuler as $i => $w)
+                    <?php $__currentLoopData = $wisataPopuler; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $i => $w): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                     <tr>
-                        <td>{{ $i+1 }}</td>
-                        <td>{{ $w->wisata }}</td>
-                        <td>{{ $w->jumlah }}</td>
-                        <td><span class="badge-green">{{ $w->persen }}%</span></td>
+                        <td><?php echo e($i+1); ?></td>
+                        <td><?php echo e($w->wisata); ?></td>
+                        <td><?php echo e($w->jumlah); ?></td>
+                        <td><span class="badge-green"><?php echo e($w->persen); ?>%</span></td>
                     </tr>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </tbody>
             </table>
         </div>
@@ -438,22 +438,22 @@ table tbody tr:hover { background: #fafafa; }
         <div class="kesimpulan-box">
             <h4>Kesimpulan Tahunan</h4>
             <p>
-                Secara umum, sentimen positif mendominasi tahun <b>{{ $tahun }}</b>
-                dengan rata-rata <b>{{ $persenPositif }}%</b>.
-                @if(isset($wisataPopuler[0]))
-                {{ $wisataPopuler[0]->wisata }} menjadi destinasi paling populer
+                Secara umum, sentimen positif mendominasi tahun <b><?php echo e($tahun); ?></b>
+                dengan rata-rata <b><?php echo e($persenPositif); ?>%</b>.
+                <?php if(isset($wisataPopuler[0])): ?>
+                <?php echo e($wisataPopuler[0]->wisata); ?> menjadi destinasi paling populer
                 dengan sentimen positif tertinggi.
-                @endif
+                <?php endif; ?>
                 Diperlukan peningkatan pada aspek fasilitas, kebersihan, dan pelayanan
                 untuk menekan sentimen negatif.
             </p>
         </div>
     </div>
 
-    {{-- FOOTER --}}
+    
     <div class="footer">
         <div>SENTARA - Sistem Analisis Sentimen Wisata Jember</div>
-        <div>Dicetak oleh: {{ auth()->user()->name }} ({{ ucfirst(auth()->user()->role ?? 'Admin') }})</div>
+        <div>Dicetak oleh: <?php echo e(auth()->user()->name); ?> (<?php echo e(ucfirst(auth()->user()->role ?? 'Admin')); ?>)</div>
     </div>
 
 </div>
@@ -461,8 +461,8 @@ table tbody tr:hover { background: #fafafa; }
 <script>
 // ── DONUT ──
 const donutCtx = document.getElementById('donut');
-const totalUlasan = {{ $totalUlasan > 0 ? $totalUlasan : 1 }};
-const donutData   = [{{ $positif }}, {{ $netral }}, {{ $negatif }}];
+const totalUlasan = <?php echo e($totalUlasan > 0 ? $totalUlasan : 1); ?>;
+const donutData   = [<?php echo e($positif); ?>, <?php echo e($netral); ?>, <?php echo e($negatif); ?>];
 
 // Plugin: angka total di tengah (tidak numpuk)
 const centerTextPlugin = {
@@ -541,21 +541,21 @@ new Chart(document.getElementById('trend'), {
     type: 'line',
     data: {
         labels: [
-            @foreach($rekapBulanan as $r)
-            '{{ $r->bulan }}',
-            @endforeach
+            <?php $__currentLoopData = $rekapBulanan; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            '<?php echo e($r->bulan); ?>',
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         ],
         datasets: [
             {
                 label: 'Positif',
-                data: [@foreach($rekapBulanan as $r){{ $r->positif }},@endforeach],
+                data: [<?php $__currentLoopData = $rekapBulanan; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php echo e($r->positif); ?>,<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>],
                 borderColor: '#22c55e',
                 backgroundColor: 'rgba(34,197,94,0.08)',
                 tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#22c55e'
             },
             {
                 label: 'Netral',
-                data: [@foreach($rekapBulanan as $r){{ $r->netral }},@endforeach],
+                data: [<?php $__currentLoopData = $rekapBulanan; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php echo e($r->netral); ?>,<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>],
                 borderColor: '#f59e0b',
                 backgroundColor: 'rgba(245,158,11,0.05)',
                 tension: 0.4, fill: false, pointRadius: 4, pointBackgroundColor: '#f59e0b',
@@ -563,7 +563,7 @@ new Chart(document.getElementById('trend'), {
             },
             {
                 label: 'Negatif',
-                data: [@foreach($rekapBulanan as $r){{ $r->negatif }},@endforeach],
+                data: [<?php $__currentLoopData = $rekapBulanan; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $r): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?><?php echo e($r->negatif); ?>,<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>],
                 borderColor: '#ef4444',
                 backgroundColor: 'rgba(239,68,68,0.05)',
                 tension: 0.4, fill: false, pointRadius: 4, pointBackgroundColor: '#ef4444'
@@ -591,7 +591,7 @@ function simpanPDF() {
 
     html2pdf().set({
         margin:      8,
-        filename:    'Laporan-Tahunan-{{ $tahun }}.pdf',
+        filename:    'Laporan-Tahunan-<?php echo e($tahun); ?>.pdf',
         image:       { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true, windowWidth: 960 },
         jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -602,4 +602,4 @@ function simpanPDF() {
 </script>
 
 </body>
-</html>
+</html><?php /**PATH C:\laragon\www\SistemAnalisisSentimen\resources\views/laporan/tahunan.blade.php ENDPATH**/ ?>
