@@ -55,7 +55,7 @@ class AnalisisController extends Controller
             $query->where('wisata', $request->wisata);
         }
 
-        $hasil = $query->latest()->paginate(10);
+        $hasil = $query->orderBy('id', 'desc')->paginate(10);
         $standalone = true;
 
         return view('analisis.index', compact(

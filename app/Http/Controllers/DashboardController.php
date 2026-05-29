@@ -230,10 +230,11 @@ class DashboardController extends Controller
         ->distinct('wisata')
         ->count('wisata');
 
-    $hasil = DB::table('hasil_analisis')
-        ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
-        ->when($wisata && $wisata != 'Semua Destinasi', fn($q) => $q->where('wisata', $wisata))
-        ->paginate(10);
+   $hasil = DB::table('hasil_analisis')
+    ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
+    ->when($wisata && $wisata != 'Semua Destinasi', fn($q) => $q->where('wisata', $wisata))
+    ->orderByDesc('ulasan_id')
+    ->paginate(10);
 
     $jumlahKelasAnalisis = DB::table('hasil_analisis')
         ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
