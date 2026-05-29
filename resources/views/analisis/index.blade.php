@@ -59,43 +59,51 @@
 
     </div>
 
-    
+
 
     {{-- ================= FILTER ================= --}}
-    <form id="filter-form" method="GET" action="{{ route('dashboard') }}" class="flex gap-2 mb-4">
+<div class="flex items-end gap-3 mb-4">
 
-    <input type="hidden" name="tab" value="analisis">
+    <form id="filter-form"
+        method="GET"
+        action="{{ route('dashboard') }}"
+        class="flex items-end gap-2">
 
-    <input type="hidden" name="periode_id" value="{{ $periodeAktif->id ?? '' }}">
+        <input type="hidden" name="tab" value="analisis">
+        <input type="hidden" name="periode_id"
+            value="{{ $periodeAktif->id ?? '' }}">
 
-    <select
-        name="wisata"
-        class="border rounded px-3 py-2"
-    >
+        <select
+            name="wisata"
+            class="border rounded px-3 py-2 h-[46px]">
 
-        <option value="">Semua Destinasi</option>
+            <option value="">Semua Destinasi</option>
 
-        @foreach($wisataList as $item)
+            @foreach($wisataList as $item)
+                <option value="{{ $item }}"
+                    {{ request('wisata') == $item ? 'selected' : '' }}>
+                    {{ $item }}
+                </option>
+            @endforeach
 
-            <option
-                value="{{ $item }}"
-                {{ request('wisata') == $item ? 'selected' : '' }}
-            >
-                {{ $item }}
-            </option>
+        </select>
 
-        @endforeach
+        <button
+            type="submit"
+            class="bg-blue-600 text-white px-4 rounded h-[46px]">
+            Filter
+        </button>
 
-    </select>
+    </form>
 
-    <button
-        type="submit"
-        class="bg-blue-600 text-white px-4 py-2 rounded"
-    >
-        Filter
-    </button>
+    <a href="{{ route('riwayat.index') }}"
+    class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 rounded-lg shadow transition h-[46px]">
 
-</form>
+        <i class="fas fa-history mr-2"></i>
+        Lihat Riwayat
+    </a>
+
+</div>
 
     {{-- ================= TABLE ================= --}}
     <div class="bg-white rounded-xl shadow p-4 h-fit">

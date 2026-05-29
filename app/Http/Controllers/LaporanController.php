@@ -4,42 +4,50 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class LaporanController extends Controller
 {
-    // ─────────────────────────────────────────────
-    // Laporan BULANAN  →  /laporan/bulanan?periode_id=X
-    // ─────────────────────────────────────────────
-    public function downloadBulanan(Request $request, $periode)
+    public function downloadBulanan($periode)
     {
-       $periodeId = $periode;
+        $periodeData = DB::table('periode_analisis')
+            ->where('id', $periode)
+            ->first();
 
-        // Ambil info periode
-        $periode = DB::table('periode_analisis')->where('id', $periodeId)->first();
-        if (!$periode) {
-            return back()->with('error', 'Periode tidak ditemukan.');
+        if (!$periodeData) {
+            return back()->with('error', 'Periode tidak ditemukan');
         }
 
-        $data = $this->collectData($periodeId);
-        $data['periode'] = $periode;
-        $data['judulLaporan'] = 'Laporan Analisis Sentimen — ' . $periode->nama;
+        $data = $this->collectData($periode);
 
-        $pdf = Pdf::loadView('laporan.bulanan', $data)
-            ->setPaper('a4', 'portrait')
-            ->setOptions(['dpi' => 110, 'defaultFont' => 'sans-serif', 'isHtml5ParserEnabled' => true]);
+        $data['periode']      = $periodeData;
+        $data['judulLaporan'] = 'Laporan Analisis Sentimen - ' . ($periodeData->nama ?? '-');
+        $data['evaluasi']     = DB::table('evaluasi_model')->orderByDesc('id')->first()
+                                ?? (object)['accuracy' => 0];
 
-        $filename = 'laporan-sentimen-' . strtolower(str_replace(' ', '-', $periode->nama)) . '.pdf';
+        // Ulasan KOTOR — dari tabel ulasan mentah
+        $data['totalUlasanKotor'] = DB::table('ulasan')
+            ->where('periode_id', $periode)
+            ->count();
 
-        return $pdf->download($filename);
+        // Trend by tanggal ULASAN (bukan created_at analisis)
+        $data['trendHarian'] = DB::table('hasil_analisis')
+            ->select(
+                DB::raw('DATE(created_at) as tanggal'),     // ✅ ganti tanggal → created_at
+                DB::raw("SUM(CASE WHEN sentimen='positif' THEN 1 ELSE 0 END) as positif"),
+                DB::raw("SUM(CASE WHEN sentimen='netral'  THEN 1 ELSE 0 END) as netral"),
+                DB::raw("SUM(CASE WHEN sentimen='negatif' THEN 1 ELSE 0 END) as negatif")
+            )
+            ->where('periode_id', $periode)
+            ->groupBy(DB::raw('DATE(created_at)'))          // ✅ ganti tanggal → created_at
+            ->orderBy(DB::raw('DATE(created_at)'))          // ✅ ganti tanggal → created_at
+            ->get();
+
+        return view('laporan.bulanan', $data);
     }
 
-    // ─────────────────────────────────────────────
-    // Laporan TAHUNAN  →  /laporan/tahunan?tahun=2025
-    // ─────────────────────────────────────────────
-    public function downloadTahunan(Request $request, $tahun)
+    public function downloadTahunan(Request $request)
     {
-        $tahun = $request->input('tahun', now()->year);
+        $tahun = $request->tahun;
 
         $periodeList = DB::table('periode_analisis')
             ->where('tahun', $tahun)
@@ -47,130 +55,59 @@ class LaporanController extends Controller
             ->get();
 
         if ($periodeList->isEmpty()) {
-            return back()->with('error', "Tidak ada data untuk tahun $tahun.");
+            return back()->with('error', 'Tidak ada data tahun tersebut');
         }
 
-        // Kumpulkan data per bulan
-        $dataBulanan = [];
-        foreach ($periodeList as $periode) {
-            $dataBulanan[] = array_merge(
-                ['periode' => $periode],
-                $this->collectData($periode->id)
-            );
-        }
-
-        // Agregat tahunan
-        $totalUlasan   = collect($dataBulanan)->sum(fn($d) => $d['totalUlasan']);
-        $totalPositif  = collect($dataBulanan)->sum(fn($d) => $d['totalPositif']);
-        $totalNegatif  = collect($dataBulanan)->sum(fn($d) => $d['totalNegatif']);
-        $totalNetral   = collect($dataBulanan)->sum(fn($d) => $d['totalNetral']);
-
-        $pdf = Pdf::loadView('laporan.tahunan', [
-            'tahun'         => $tahun,
-            'judulLaporan'  => "Laporan Analisis Sentimen Tahunan — $tahun",
-            'dataBulanan'   => $dataBulanan,
-            'totalUlasan'   => $totalUlasan,
-            'totalPositif'  => $totalPositif,
-            'totalNegatif'  => $totalNegatif,
-            'totalNetral'   => $totalNetral,
-            'persen' => $totalUlasan > 0 ? [
-                'positif' => round(($totalPositif / $totalUlasan) * 100, 1),
-                'negatif' => round(($totalNegatif / $totalUlasan) * 100, 1),
-                'netral'  => round(($totalNetral  / $totalUlasan) * 100, 1),
-            ] : ['positif' => 0, 'negatif' => 0, 'netral' => 0],
-        ])
-        ->setPaper('a4', 'portrait')
-        ->setOptions(['dpi' => 110, 'defaultFont' => 'sans-serif', 'isHtml5ParserEnabled' => true]);
-
-        return $pdf->download("laporan-sentimen-$tahun.pdf");
+        return view('laporan.tahunan', compact('tahun', 'periodeList'));
     }
 
-    // ─────────────────────────────────────────────
-    // Helper: kumpulkan semua data untuk satu periode
-    // ─────────────────────────────────────────────
-    private function collectData(int $periodeId): array
+    private function collectData($periodeId)
     {
-        // Statistik sentimen
-        $totalUlasan  = DB::table('hasil_analisis')->where('periode_id', $periodeId)->count();
-        $totalPositif = DB::table('hasil_analisis')->where('periode_id', $periodeId)->where('sentimen', 'positif')->count();
-        $totalNegatif = DB::table('hasil_analisis')->where('periode_id', $periodeId)->where('sentimen', 'negatif')->count();
-        $totalNetral  = DB::table('hasil_analisis')->where('periode_id', $periodeId)->where('sentimen', 'netral')->count();
-
-        $persen = $totalUlasan > 0 ? [
-            'positif' => round(($totalPositif / $totalUlasan) * 100, 1),
-            'negatif' => round(($totalNegatif / $totalUlasan) * 100, 1),
-            'netral'  => round(($totalNetral  / $totalUlasan) * 100, 1),
-        ] : ['positif' => 0, 'negatif' => 0, 'netral' => 0];
-
-        // Evaluasi model
-        $evaluasi = DB::table('evaluasi_model')
+        $totalUlasan = DB::table('hasil_analisis')
             ->where('periode_id', $periodeId)
-            ->latest()
-            ->first();
+            ->count();
 
-        // Per destinasi
-        $perWisata = DB::table('hasil_analisis')
+        $totalPositif = DB::table('hasil_analisis')
             ->where('periode_id', $periodeId)
-            ->select('wisata',
-                DB::raw('COUNT(*) as total'),
-                DB::raw("SUM(CASE WHEN sentimen='positif' THEN 1 ELSE 0 END) as positif"),
-                DB::raw("SUM(CASE WHEN sentimen='negatif' THEN 1 ELSE 0 END) as negatif"),
-                DB::raw("SUM(CASE WHEN sentimen='netral'  THEN 1 ELSE 0 END) as netral")
-            )
-            ->groupBy('wisata')
-            ->get();
+            ->where('sentimen', 'positif')
+            ->count();
 
-        // Tabel hasil analisis (maks 200 baris agar PDF tidak terlalu besar)
-        $hasilAnalisis = DB::table('hasil_analisis')
+        $totalNetral = DB::table('hasil_analisis')
             ->where('periode_id', $periodeId)
-            ->select('wisata', 'ulasan_asli', 'sentimen', 'probabilitas')
-            ->orderBy('wisata')
-            ->limit(200)
-            ->get();
+            ->where('sentimen', 'netral')
+            ->count();
 
-        // Rekomendasi (rule-based dari ulasan negatif)
-        $ulasanNegatif = DB::table('hasil_analisis')
+        $totalNegatif = DB::table('hasil_analisis')
             ->where('periode_id', $periodeId)
             ->where('sentimen', 'negatif')
-            ->pluck('ulasan_bersih')
-            ->implode(' ');
+            ->count();
 
-        $rekomendasi = $this->generateRekomendasi($ulasanNegatif);
-
-        return compact(
-            'totalUlasan', 'totalPositif', 'totalNegatif', 'totalNetral',
-            'persen', 'evaluasi', 'perWisata', 'hasilAnalisis', 'rekomendasi'
-        );
-    }
-
-    // ─────────────────────────────────────────────
-    // Rule-based rekomendasi (sama seperti RekomendasiController)
-    // ─────────────────────────────────────────────
-    private function generateRekomendasi(string $text): array
-    {
-        $issueRules = [
-            'Kebersihan'    => ['keywords' => ['kotor','sampah','jorok','kumuh','toilet','wc','bau'],
-                                'icon' => '🧹', 'tip' => 'Tambah tempat sampah & jadwal pembersihan rutin.'],
-            'Aksesibilitas' => ['keywords' => ['parkir','parkiran','motor','mobil','jalan','macet'],
-                                'icon' => '🚗', 'tip' => 'Sistem parkir lebih rapi dan transparan.'],
-            'Harga / Tiket' => ['keywords' => ['mahal','harga','tiket','bayar','biaya','tarif'],
-                                'icon' => '🎟️', 'tip' => 'Penyesuaian harga tiket agar lebih terjangkau.'],
-            'Fasilitas'     => ['keywords' => ['fasilitas','gazebo','warung','kantin','musholla','wifi','bangku'],
-                                'icon' => '🏗️', 'tip' => 'Fasilitas lengkap & terawat meningkatkan kepuasan.'],
+        $persen = [
+            'positif' => $totalUlasan ? round(($totalPositif / $totalUlasan) * 100, 2) : 0,
+            'netral'  => $totalUlasan ? round(($totalNetral  / $totalUlasan) * 100, 2) : 0,
+            'negatif' => $totalUlasan ? round(($totalNegatif / $totalUlasan) * 100, 2) : 0,
         ];
 
-        $result = [];
-        foreach ($issueRules as $nama => $rule) {
-            $skor = 0;
-            foreach ($rule['keywords'] as $kw) {
-                $skor += substr_count(strtolower($text), $kw);
-            }
-            if ($skor > 0) {
-                $result[] = ['nama' => $nama, 'skor' => $skor, 'icon' => $rule['icon'], 'tip' => $rule['tip']];
-            }
-        }
+        $perWisata = DB::table('hasil_analisis')
+            ->select(
+                'wisata',
+                DB::raw('COUNT(*) as total'),
+                DB::raw("SUM(CASE WHEN sentimen='positif' THEN 1 ELSE 0 END) as positif"),
+                DB::raw("SUM(CASE WHEN sentimen='netral'  THEN 1 ELSE 0 END) as netral"),
+                DB::raw("SUM(CASE WHEN sentimen='negatif' THEN 1 ELSE 0 END) as negatif")
+            )
+            ->where('periode_id', $periodeId)
+            ->groupBy('wisata')
+            ->orderByDesc('positif')
+            ->get();
 
-        usort($result, fn($a, $b) => $b['skor'] - $a['skor']);
-        return array_slice($result, 0, 5);
+        return [
+            'totalUlasan'  => $totalUlasan,
+            'totalPositif' => $totalPositif,
+            'totalNetral'  => $totalNetral,
+            'totalNegatif' => $totalNegatif,
+            'persen'       => $persen,
+            'perWisata'    => $perWisata,
+        ];
     }
 }

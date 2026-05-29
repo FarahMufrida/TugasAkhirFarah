@@ -63,45 +63,52 @@
 
     </div>
 
-    
+
 
     
-    <form id="filter-form" method="GET" action="<?php echo e(route('dashboard')); ?>" class="flex gap-2 mb-4">
+<div class="flex items-end gap-3 mb-4">
 
-    <input type="hidden" name="tab" value="analisis">
+    <form id="filter-form"
+        method="GET"
+        action="<?php echo e(route('dashboard')); ?>"
+        class="flex items-end gap-2">
 
-    <input type="hidden" name="periode_id" value="<?php echo e($periodeAktif->id ?? ''); ?>">
+        <input type="hidden" name="tab" value="analisis">
+        <input type="hidden" name="periode_id"
+            value="<?php echo e($periodeAktif->id ?? ''); ?>">
 
-    <select
-        name="wisata"
-        class="border rounded px-3 py-2"
-    >
+        <select
+            name="wisata"
+            class="border rounded px-3 py-2 h-[46px]">
 
-        <option value="">Semua Destinasi</option>
+            <option value="">Semua Destinasi</option>
 
-        <?php $__currentLoopData = $wisataList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+            <?php $__currentLoopData = $wisataList; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                <option value="<?php echo e($item); ?>"
+                    <?php echo e(request('wisata') == $item ? 'selected' : ''); ?>>
+                    <?php echo e($item); ?>
 
-            <option
-                value="<?php echo e($item); ?>"
-                <?php echo e(request('wisata') == $item ? 'selected' : ''); ?>
+                </option>
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
-            >
-                <?php echo e($item); ?>
+        </select>
 
-            </option>
+        <button
+            type="submit"
+            class="bg-blue-600 text-white px-4 rounded h-[46px]">
+            Filter
+        </button>
 
-        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+    </form>
 
-    </select>
+    <a href="<?php echo e(route('riwayat.index')); ?>"
+    class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 rounded-lg shadow transition h-[46px]">
 
-    <button
-        type="submit"
-        class="bg-blue-600 text-white px-4 py-2 rounded"
-    >
-        Filter
-    </button>
+        <i class="fas fa-history mr-2"></i>
+        Lihat Riwayat
+    </a>
 
-</form>
+</div>
 
     
     <div class="bg-white rounded-xl shadow p-4 h-fit">

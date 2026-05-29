@@ -9,11 +9,11 @@ use App\Http\Controllers\RekomendasiController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
+use App\Http\Controllers\LaporanController;
 
 
 
 /*
-|--------------------------------------------------------------------------
 | ROUTE AWAL
 |--------------------------------------------------------------------------
 */
@@ -123,6 +123,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/ulasan/periode/kosongkan',
         [UlasanController::class, 'kosongkanPeriode']
     )->name('ulasan.kosongkan-periode');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | LAPORAN
+    |--------------------------------------------------------------------------
+    */
+
+    Route::get('/laporan/bulanan/{periode}',
+    [LaporanController::class, 'downloadBulanan']
+    )->name('laporan.bulanan');
+
+    Route::get('/laporan/tahunan',
+        [LaporanController::class, 'downloadTahunan']
+    )->name('laporan.tahunan');
 
     /*
     |--------------------------------------------------------------------------
