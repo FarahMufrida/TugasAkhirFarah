@@ -1,0 +1,26 @@
+{
+    "model": "ComplementNB (Naive Bayes)",
+    "best_params": {
+        "clf__alpha": 0.1,
+        "clf__norm": true,
+        "tfidf__min_df": 3,
+        "tfidf__ngram_range": [
+            1,
+            1
+        ],
+        "tfidf__sublinear_tf": false
+    },
+    "cv_macro_f1": {
+        "mean": 0.3964,
+        "std": 0.0414
+    },
+    "evaluasi_test": {
+        "accuracy": 0.7143,
+        "macro_f1": 0.6746
+    },
+    "distribusi_label": {
+        "positif": 19,
+        "netral": 11,
+        "negatif": 4
+    }
+}

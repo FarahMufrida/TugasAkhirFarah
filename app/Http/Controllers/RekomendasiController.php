@@ -23,23 +23,35 @@ class RekomendasiController extends Controller
             ],
         ],
         'Aksesibilitas' => [
-            'keywords' => ['parkir', 'lahan parkir', 'tempat parkir', 'parkiran', 'motor', 'mobil'],
+            // FIX: diperluas — sebelumnya hanya mencakup parkir,
+            // sekarang mencakup akses jalan, transportasi, dan kemudahan mencapai lokasi
+            'keywords' => [
+                'parkir', 'lahan parkir', 'tempat parkir', 'parkiran', 'motor', 'mobil',
+                'jalan', 'akses', 'transportasi', 'jalur', 'tanjakan',
+                'turunan', 'sempit', 'jauh', 'susah', 'sulit', 'capek',
+                'angkutan', 'ojek', 'kendaraan', 'macet',
+            ],
             'color'    => 'orange',
             'icon'     => '🚗',
             'saran'    => [
-                'actions' => ['Penataan area parkir', 'Tarif transparan', 'Petugas lebih ramah'],
-                'dampak'  => 'Mengurangi keluhan',
-                'tip'     => 'Sistem parkir lebih rapi dan transparan.',
+                'actions' => ['Penataan area parkir', 'Perbaikan akses jalan', 'Penambahan transportasi umum'],
+                'dampak'  => 'Mengurangi keluhan aksesibilitas',
+                'tip'     => 'Sistem parkir lebih rapi dan akses jalan diperbaiki.',
             ],
         ],
-        'Harga / Tiket' => [
-            'keywords' => ['mahal', 'harga', 'tiket', 'bayar', 'biaya', 'tarif', 'murah', 'terjangkau'],
+        // FIX: nama diganti dari 'Harga / Tiket' → 'HTM'
+        // agar konsisten dengan parameter TA (Harga Tiket Masuk)
+        'HTM' => [
+            'keywords' => [
+                'mahal', 'harga', 'tiket', 'bayar', 'biaya', 'tarif',
+                'murah', 'terjangkau', 'htm', 'retribusi', 'pungli',
+            ],
             'color'    => 'yellow',
             'icon'     => '🎟️',
             'saran'    => [
-                'actions' => ['Evaluasi harga tiket', 'Promo wisata', 'Diskon tertentu'],
-                'dampak'  => 'Daya tarik meningkat',
-                'tip'     => 'Penyesuaian harga tiket agar lebih terjangkau.',
+                'actions' => ['Evaluasi harga tiket masuk', 'Buat paket promo wisata', 'Transparansi retribusi'],
+                'dampak'  => 'Daya tarik wisatawan meningkat',
+                'tip'     => 'Penyesuaian HTM agar lebih terjangkau dan transparan.',
             ],
         ],
         'Fasilitas' => [
@@ -52,7 +64,6 @@ class RekomendasiController extends Controller
                 'tip'     => 'Fasilitas lengkap & terawat meningkatkan kepuasan.',
             ],
         ],
-        
     ];
 
     public function index(Request $request)
@@ -88,9 +99,12 @@ class RekomendasiController extends Controller
         };
 
         // --- 4. Ambil ulasan negatif & bersihkan teks ---
+        // FIX: fallback ke kolom 'ulasan' jika 'ulasan_bersih' tidak tersedia
         $ulasanNegatif = (clone $queryFilter)
             ->where('sentimen', 'negatif')
-            ->pluck('ulasan_bersih')   // gunakan kolom yang sudah dipreproses
+            ->get(['ulasan_bersih', 'ulasan'])
+            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan ?? '')
+            ->filter()
             ->toArray();
 
         $text  = strtolower(implode(' ', $ulasanNegatif));
@@ -134,8 +148,40 @@ class RekomendasiController extends Controller
         }
 
         // --- 7. Isu dominan (ranking 1) ---
-        $isuDominan     = $isuUtama[0]['nama']   ?? 'Belum ada isu';
-        $isuDominanPersen = $isuUtama[0]['persen'] ?? 0;
+        // FIX: guard jika tidak ada ulasan negatif sama sekali
+        if (empty($isuUtama) || $isuUtama[0]['skor'] === 0) {
+            $isuDominan       = 'Tidak ada keluhan';
+            $isuDominanPersen = 0;
+            $prioritas        = [];
+            $saranPerbaikan   = [];
+        } else {
+            $isuDominan       = $isuUtama[0]['nama'];
+            $isuDominanPersen = $isuUtama[0]['persen'];
+
+            // --- 9. Prioritas rekomendasi (top 3 isu) ---
+            $prioritas = [];
+            $rank       = 1;
+            foreach (array_slice($issueSkor, 0, 3, true) as $nama => $skor) {
+                $prioritas[] = [
+                    'rank'    => $rank++,
+                    'nama'    => $nama,
+                    'icon'    => $this->issueRules[$nama]['icon'],
+                    'actions' => $this->issueRules[$nama]['saran']['actions'],
+                    'dampak'  => $this->issueRules[$nama]['saran']['dampak'],
+                    'color'   => $this->issueRules[$nama]['color'],
+                ];
+            }
+
+            // --- 10. Saran perbaikan (top 3) ---
+            $saranPerbaikan = [];
+            foreach (array_slice($issueSkor, 0, 3, true) as $nama => $skor) {
+                $saranPerbaikan[] = [
+                    'nama' => 'Perbaikan ' . $nama,
+                    'tip'  => $this->issueRules[$nama]['saran']['tip'],
+                    'icon' => $this->issueRules[$nama]['icon'],
+                ];
+            }
+        }
 
         // --- 8. Kata kunci dominan (global, top 10, filter stopword) ---
         $stopwords = [
@@ -157,30 +203,6 @@ class RekomendasiController extends Controller
 
         arsort($freq);
         $kataDominan = array_slice($freq, 0, 10, true);
-
-        // --- 9. Prioritas rekomendasi (top 3 isu) ---
-        $prioritas = [];
-        $rank       = 1;
-        foreach (array_slice($issueSkor, 0, 3, true) as $nama => $skor) {
-            $prioritas[] = [
-                'rank'    => $rank++,
-                'nama'    => $nama,
-                'icon'    => $this->issueRules[$nama]['icon'],
-                'actions' => $this->issueRules[$nama]['saran']['actions'],
-                'dampak'  => $this->issueRules[$nama]['saran']['dampak'],
-                'color'   => $this->issueRules[$nama]['color'],
-            ];
-        }
-
-        // --- 10. Saran perbaikan (top 3) ---
-        $saranPerbaikan = [];
-        foreach (array_slice($issueSkor, 0, 3, true) as $nama => $skor) {
-            $saranPerbaikan[] = [
-                'nama' => 'Perbaikan ' . $nama,
-                'tip'  => $this->issueRules[$nama]['saran']['tip'],
-                'icon' => $this->issueRules[$nama]['icon'],
-            ];
-        }
 
         // --- 11. Filter destinasi yang sedang aktif ---
         $destinasiAktif = $request->input('destinasi', 'Semua Destinasi');
