@@ -27,6 +27,7 @@ class LaporanController extends Controller
 
         $data['evaluasi'] =
             DB::table('evaluasi_model')
+            ->where('periode_id', $periode)  
             ->orderByDesc('id')
             ->first()
             ?? (object)['accuracy' => 0];
@@ -158,10 +159,10 @@ class LaporanController extends Controller
         // AKURASI
         $akurasi =
             DB::table('evaluasi_model')
-            ->latest('id')
-            ->value('accuracy')
-            ?? 0;
-
+            ->whereIn('periode_id', $periodeIds)
+            ->avg('accuracy') ?? 0;
+          
+            
         // TOTAL WISATA
         $totalWisata =
             DB::table('hasil_analisis')

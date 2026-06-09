@@ -12,99 +12,84 @@ use Throwable;
 class UlasanController extends Controller
 {
     public function index(Request $request)
-{
-    $periodeList = DB::table('periode_analisis as p')
-        ->whereExists(function ($q) {
-            $q->select(DB::raw(1))
-                ->from('ulasan as u')
-                ->whereColumn('u.periode_id', 'p.id');
-        })
-        ->orWhereExists(function ($q) {
-            $q->select(DB::raw(1))
-                ->from('hasil_analisis as h')
-                ->whereColumn('h.periode_id', 'p.id');
-        })
-        ->orderBy('p.tahun', 'desc')
-        ->orderBy('p.bulan', 'desc')
-        ->select('p.*')
-        ->get();
+    {
+        $currentMonth = now()->month;
+        $currentYear  = now()->year;
 
-    $availablePeriodeIds = $periodeList->pluck('id')->map(fn($id) => (string) $id);
+        // Ambil semua periode yang punya data (ulasan atau hasil analisis)
+        $periodeList = DB::table('periode_analisis as p')
+            ->whereExists(function ($q) {
+                $q->select(DB::raw(1))->from('ulasan as u')->whereColumn('u.periode_id', 'p.id');
+            })
+            ->orWhereExists(function ($q) {
+                $q->select(DB::raw(1))->from('hasil_analisis as h')->whereColumn('h.periode_id', 'p.id');
+            })
+            ->orderBy('p.tahun', 'desc')
+            ->orderBy('p.bulan', 'desc')
+            ->select('p.*')
+            ->get();
 
-    $requestedPeriodeId = $request->filled('periode_id')
-        ? (string) $request->periode_id
-        : null;
+        // Kalau request manual dari dropdown → pakai itu
+        if ($request->filled('periode_id')) {
+            $periodeId    = (int) $request->periode_id;
+            $periodeAktif = $periodeList->firstWhere('id', $periodeId)
+                ?? DB::table('periode_analisis')->find($periodeId);
+        } else {
+            // Cari / buat periode bulan ini (meski belum ada data → tetap tampil kosong)
+            $periodeBulanIni = DB::table('periode_analisis')
+                ->where('bulan', $currentMonth)
+                ->where('tahun', $currentYear)
+                ->first();
 
-    // cari periode bulan & tahun sekarang
-    $currentMonth = now()->month;
-    $currentYear = now()->year;
+            if (!$periodeBulanIni) {
+                $periodeId = DB::table('periode_analisis')->insertGetId([
+                    'nama'       => now()->locale('id')->isoFormat('MMMM YYYY'),
+                    'bulan'      => $currentMonth,
+                    'tahun'      => $currentYear,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $periodeAktif = DB::table('periode_analisis')->find($periodeId);
+            } else {
+                $periodeId    = $periodeBulanIni->id;
+                $periodeAktif = $periodeBulanIni;
+            }
+        }
 
-    $currentPeriode = $periodeList->first(function ($periode) use ($currentMonth, $currentYear) {
-        return $periode->bulan == $currentMonth
-            && $periode->tahun == $currentYear;
-    });
+        // Query ulasan berdasarkan periode aktif
+        $query = Ulasan::query()->where('periode_id', $periodeId);
 
-    // kalau bulan sekarang tidak ada → ambil periode terakhir
-    $defaultPeriodeId = $currentPeriode->id
-        ?? $periodeList->sortByDesc('id')->first()->id
-        ?? null;
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('ulasan', 'LIKE', "%$search%")
+                  ->orWhere('wisata', 'LIKE', "%$search%");
+            });
+        }
 
-    // prioritas:
-    // 1. request manual dari dropdown
-    // 2. periode bulan sekarang
-    // 3. periode terakhir
-    $periodeId = $request->filled('periode_id')
-        && $availablePeriodeIds->contains($requestedPeriodeId)
-        ? $requestedPeriodeId
-        : $defaultPeriodeId;
+        if ($request->filled('wisata')) {
+            $query->where('wisata', 'LIKE', '%' . $request->wisata . '%');
+        }
 
-    $periodeAktif = $periodeId
-        ? $periodeList->firstWhere('id', (int) $periodeId)
-        : null;
+        $filteredQuery = clone $query;
+        $totalUlasan   = (clone $filteredQuery)->count();
+        $totalWisata   = (clone $filteredQuery)->distinct('wisata')->count('wisata');
+        $lastUpdate    = (clone $filteredQuery)->latest()->value('created_at');
 
-    $query = Ulasan::query();
+        $mentah = $query->orderBy('tanggal', 'desc')->paginate(20)->withQueryString();
 
-    // 🔍 SEARCH (ulasan + wisata)
-    if ($request->filled('search')) {
-        $search = $request->search;
-
-        $query->where(function ($q) use ($search) {
-            $q->where('ulasan', 'LIKE', "%$search%")
-                ->orWhere('wisata', 'LIKE', "%$search%");
-        });
+        return view('ulasan.index', compact(
+            'mentah',
+            'totalUlasan',
+            'totalWisata',
+            'lastUpdate',
+            'periodeList',
+            'periodeId',
+            'periodeAktif',
+            'currentMonth',
+            'currentYear'
+        ))->with(['scraperDestinations' => $this->scraperDestinations()]);
     }
-
-    // 🔍 FILTER WISATA
-    if ($request->filled('wisata')) {
-        $query->where('wisata', 'LIKE', '%' . $request->wisata . '%');
-    }
-
-    // ← default/reset menampilkan periode terbaru
-    if ($periodeId) {
-        $query->where('periode_id', $periodeId);
-    }
-
-    $filteredQuery = clone $query;
-
-    $totalUlasan = (clone $filteredQuery)->count();
-    $totalWisata = (clone $filteredQuery)->distinct('wisata')->count('wisata');
-    $lastUpdate = (clone $filteredQuery)->latest()->value('created_at');
-
-    $mentah = $query->orderBy('tanggal', 'desc')->paginate(20)->withQueryString();
-
-    return view('ulasan.index', compact(
-        'mentah',
-        'totalUlasan',
-        'totalWisata',
-        'lastUpdate',
-        'periodeList',
-        'periodeId',
-        'periodeAktif',
-        'defaultPeriodeId'
-    ))->with([
-        'scraperDestinations' => $this->scraperDestinations(),
-    ]);
-}
 
     public function riwayat()
     {
@@ -249,62 +234,65 @@ class UlasanController extends Controller
     }
 
     public function ambilData(Request $request)
-    {
-        $this->allowLongRunningRequest();
+{
+    $this->allowLongRunningRequest();
 
-        $validated = $request->validate([
-            'periode_bulan' => ['nullable', 'date_format:Y-m'],
-            'wisata' => ['nullable', 'string'],
-            'redirect_to' => ['nullable', 'in:dashboard,ulasan'],
-        ]);
+    $validated = $request->validate([
+        'periode_bulan' => ['nullable', 'date_format:Y-m'],
+        'wisata'        => ['nullable', 'string'],
+        'redirect_to'   => ['nullable', 'in:dashboard,ulasan'],
+    ]);
 
-        $periodeBulan = \Carbon\Carbon::createFromFormat(
-            'Y-m',
-            $validated['periode_bulan'] ?? now()->format('Y-m')
-        );
-        $startDate = $periodeBulan->copy()->startOfMonth()->toDateString();
-        $endDate = $periodeBulan->copy()->endOfMonth()->toDateString();
+    $periodeBulan = \Carbon\Carbon::createFromFormat(
+        'Y-m',
+        $validated['periode_bulan'] ?? now()->format('Y-m')
+    );
+    $startDate = $periodeBulan->copy()->startOfMonth()->toDateString();
+    $endDate   = $periodeBulan->copy()->endOfMonth()->toDateString();
 
-        $scrapingArguments = [
-            '--start-date', $startDate,
-            '--end-date', $endDate,
-        ];
+    $scrapingArguments = [
+        '--start-date', $startDate,
+        '--end-date',   $endDate,
+    ];
 
-        if (!empty($validated['wisata'])) {
-            $scrapingArguments[] = '--wisata';
-            $scrapingArguments[] = $validated['wisata'];
-        }
-
-        $scraping = $this->runPythonScript(base_path('scraper/scraping_pipeline.py'), 1800, $scrapingArguments);
-
-        if (!$scraping['success']) {
-            return redirect()->route('ulasan.index')
-                ->with('error', 'Scraping gagal: ' . $scraping['output']);
-        }
-
-
-        $lokasiLabel = empty($validated['wisata']) ? 'semua lokasi' : $validated['wisata'];
-        $redirectParameters = [
-            'periode_id' => $periode->id ?? null,
-        ];
-
-        if (!empty($validated['wisata'])) {
-            $redirectParameters['wisata'] = $validated['wisata'];
-        }
-
-        if (($validated['redirect_to'] ?? 'dashboard') === 'ulasan') {
-            return redirect()->route('ulasan.index', array_filter($redirectParameters))
-                ->with('success', 'Data berhasil diambil' . $lokasiLabel . ' periode ' . $periodeBulan->translatedFormat('F Y') . '.');
-        }
-
-        if (!empty($validated['wisata'])) {
-            $redirectParameters['tab'] = 'analisis';
-        }
-
-        return redirect()->route('ulasan.index', array_filter($redirectParameters))
-    ->with('success', 'Scraping berhasil dilakukan untuk ' . $lokasiLabel . ' periode ' . $periodeBulan->translatedFormat('F Y') . '. Silakan jalankan proses analisis.');
+    if (!empty($validated['wisata'])) {
+        $scrapingArguments[] = '--wisata';
+        $scrapingArguments[] = $validated['wisata'];
     }
-    
+
+    $scraping = $this->runPythonScript(base_path('scraper/scraping_pipeline.py'), 1800, $scrapingArguments);
+
+    if (!$scraping['success']) {
+        return redirect()->route('ulasan.index')
+            ->with('error', 'Scraping gagal: ' . $scraping['output']);
+    }
+
+    // ✅ FIX: Ambil periode_id dari DB setelah scraping selesai
+    $periode = DB::table('periode_analisis')
+        ->where('bulan', $periodeBulan->month)
+        ->where('tahun', $periodeBulan->year)
+        ->first();
+
+    $lokasiLabel        = empty($validated['wisata']) ? 'semua lokasi' : $validated['wisata'];
+    $redirectParameters = [
+        'periode_id' => $periode->id ?? null,
+    ];
+
+    if (!empty($validated['wisata'])) {
+        $redirectParameters['wisata'] = $validated['wisata'];
+    }
+
+    if (($validated['redirect_to'] ?? 'ulasan') === 'ulasan') {
+        return redirect()->route('ulasan.index', array_filter($redirectParameters))
+            ->with('success', 'Data berhasil diambil untuk ' . $lokasiLabel . ' periode ' . $periodeBulan->translatedFormat('F Y') . '.');
+    }
+
+    $redirectParameters['tab'] = 'analisis';
+
+    return redirect()->route('dashboard', array_filter($redirectParameters))
+        ->with('success', 'Scraping berhasil untuk ' . $lokasiLabel . ' periode ' . $periodeBulan->translatedFormat('F Y') . '. Silakan jalankan proses analisis.');
+    }
+
     public function kosongkanPeriode(Request $request)
     {
         $periodeId = $request->validate([
@@ -398,6 +386,18 @@ class UlasanController extends Controller
             'TEMP' => getenv('TEMP') ?: 'C:\\Users\\Mufrida Farah\\AppData\\Local\\Temp',
             'TMP' => getenv('TMP') ?: 'C:\\Users\\Mufrida Farah\\AppData\\Local\\Temp',
         ]);
+
+    //     $envVars = array_merge($_SERVER, $_ENV, array_filter([
+    //         'PATH'         => getenv('PATH') ?: '/usr/bin:/usr/local/bin:/bin',
+    //         'HOME'         => getenv('HOME') ?: (getenv('USERPROFILE') ?: null),
+    //         'TEMP'         => getenv('TEMP') ?: (getenv('TMP') ?: sys_get_temp_dir()),
+    //         'TMP'          => getenv('TMP')  ?: (getenv('TEMP') ?: sys_get_temp_dir()),
+    //         // Windows only — diisi kalau ada, di Linux otomatis null (dibuang array_filter)
+    //         'SystemRoot'   => getenv('SystemRoot')   ?: null,
+    //         'windir'       => getenv('windir')       ?: null,
+    //         'USERPROFILE'  => getenv('USERPROFILE')  ?: null,
+    //         'LOCALAPPDATA' => getenv('LOCALAPPDATA') ?: null,
+    // ]));
 
         // 3. Masukkan $envVars ke parameter ketiga Process
         $process = new Process(array_merge([$pythonPath, $scriptPath], $arguments), base_path(), $envVars);

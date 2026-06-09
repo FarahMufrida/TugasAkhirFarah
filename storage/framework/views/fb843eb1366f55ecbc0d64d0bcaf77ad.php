@@ -101,12 +101,7 @@
 
     </form>
 
-    <a href="<?php echo e(route('riwayat.index')); ?>"
-    class="inline-flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white px-5 rounded-lg shadow transition h-[46px]">
-
-        <i class="fas fa-history mr-2"></i>
-        Lihat Riwayat
-    </a>
+    
 
 </div>
 

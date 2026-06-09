@@ -74,9 +74,36 @@ class RekomendasiController extends Controller
             ->distinct()
             ->pluck('wisata');
 
-        // --- 2. Query dengan filter destinasi ---
+        // --- 2. Query dengan filter destinasi & periode ---
         $queryAll    = HasilAnalisis::query();
         $queryFilter = HasilAnalisis::query();
+
+        // Resolve periode dari request (periode_bulan atau periode_id)
+        $periodeId = null;
+        if ($request->filled('periode_id')) {
+            $periodeId = (int) $request->periode_id;
+        } elseif ($request->filled('periode_bulan')) {
+            [$tahunParam, $bulanParam] = explode('-', $request->periode_bulan);
+            $periodeRow = DB::table('periode_analisis')
+                ->where('bulan', (int) $bulanParam)
+                ->where('tahun', (int) $tahunParam)
+                ->first();
+            $periodeId = $periodeRow?->id;
+        }
+
+        // Kalau tidak ada periode di request → pakai periode bulan ini
+        if (!$periodeId) {
+            $periodeRow = DB::table('periode_analisis')
+                ->where('bulan', now()->month)
+                ->where('tahun', now()->year)
+                ->first();
+            $periodeId = $periodeRow?->id;
+        }
+
+        if ($periodeId) {
+            $queryAll->where('periode_id', $periodeId);
+            $queryFilter->where('periode_id', $periodeId);
+        }
 
         if ($request->filled('destinasi')) {
             $queryFilter->where('wisata', $request->destinasi);
@@ -89,7 +116,19 @@ class RekomendasiController extends Controller
         $totalNetral   = (clone $queryFilter)->where('sentimen', 'netral')->count();
 
         $persenNegatif     = $totalUlasan > 0 ? round(($totalNegatif / $totalUlasan) * 100, 2) : 0;
-        $tingkatKepuasan   = $totalUlasan > 0 ? round(($totalPositif / $totalUlasan) * 100) : 0;
+        $persenPositif     = $totalUlasan > 0 ? round(($totalPositif / $totalUlasan) * 100) : 0;
+        $persenNetral      = $totalUlasan > 0 ? round(($totalNetral  / $totalUlasan) * 100) : 0;
+        $tingkatKepuasan   = $persenPositif;
+
+        // --- 3a. Statistik destinasi ---
+        $totalDestinasiAnalisis   = $queryAll->distinct('wisata')->count('wisata');
+        $totalDestinasiBerkeluhan = (clone $queryAll)->where('sentimen', 'negatif')
+            ->distinct('wisata')->count('wisata');
+
+        // --- 3b. Periode aktif ---
+        $periodeAktif = $periodeId
+            ? DB::table('periode_analisis')->find($periodeId)
+            : null;
 
         // Label kepuasan
         $labelKepuasan = match(true) {
@@ -144,6 +183,80 @@ class RekomendasiController extends Controller
                 'persen'  => round(($skor / $totalSkorIsu) * 100),
                 'color'   => $this->issueRules[$nama]['color'],
                 'icon'    => $this->issueRules[$nama]['icon'],
+            ];
+        }
+
+        // --- 6a. Isu negatif (untuk kolom tabel negatif di tampilan) ---
+        $isuNegatif = [];
+        foreach (array_slice($issueSkor, 0, 5, true) as $nama => $skor) {
+            $isuNegatif[] = [
+                'nama'   => $nama,
+                'skor'   => $skor,
+                'persen' => round(($skor / $totalSkorIsu) * 100),
+                'color'  => $this->issueRules[$nama]['color'],
+                'icon'   => $this->issueRules[$nama]['icon'],
+            ];
+        }
+
+        // --- 6b. Isu netral (rule-based dari ulasan netral) ---
+        $ulasanNetral = (clone $queryFilter)
+            ->where('sentimen', 'netral')
+            ->get(['ulasan_bersih', 'ulasan'])
+            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan ?? '')
+            ->filter()
+            ->toArray();
+
+        $textNetral  = strtolower(implode(' ', $ulasanNetral));
+        $skorNetral  = [];
+        foreach ($this->issueRules as $kategori => $rule) {
+            $skor = 0;
+            foreach ($rule['keywords'] as $kw) {
+                $skor += substr_count($textNetral, $kw);
+            }
+            $skorNetral[$kategori] = $skor;
+        }
+        arsort($skorNetral);
+        $totalSkorNetral = array_sum($skorNetral) ?: 1;
+
+        $isuNetral = [];
+        foreach (array_slice($skorNetral, 0, 5, true) as $nama => $skor) {
+            $isuNetral[] = [
+                'nama'   => $nama,
+                'skor'   => $skor,
+                'persen' => round(($skor / $totalSkorNetral) * 100),
+                'color'  => $this->issueRules[$nama]['color'],
+                'icon'   => $this->issueRules[$nama]['icon'],
+            ];
+        }
+
+        // --- 6c. Isu positif (rule-based dari ulasan positif) ---
+        $ulasanPositif = (clone $queryFilter)
+            ->where('sentimen', 'positif')
+            ->get(['ulasan_bersih', 'ulasan'])
+            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan ?? '')
+            ->filter()
+            ->toArray();
+
+        $textPositif  = strtolower(implode(' ', $ulasanPositif));
+        $skorPositif  = [];
+        foreach ($this->issueRules as $kategori => $rule) {
+            $skor = 0;
+            foreach ($rule['keywords'] as $kw) {
+                $skor += substr_count($textPositif, $kw);
+            }
+            $skorPositif[$kategori] = $skor;
+        }
+        arsort($skorPositif);
+        $totalSkorPositif = array_sum($skorPositif) ?: 1;
+
+        $isuPositif = [];
+        foreach (array_slice($skorPositif, 0, 5, true) as $nama => $skor) {
+            $isuPositif[] = [
+                'nama'   => $nama,
+                'skor'   => $skor,
+                'persen' => round(($skor / $totalSkorPositif) * 100),
+                'color'  => $this->issueRules[$nama]['color'],
+                'icon'   => $this->issueRules[$nama]['icon'],
             ];
         }
 
@@ -210,14 +323,23 @@ class RekomendasiController extends Controller
         return view('rekomendasi.index', compact(
             'destinasiList',
             'destinasiAktif',
+            'periodeId',
             'totalUlasan',
             'totalNegatif',
             'totalPositif',
             'totalNetral',
             'persenNegatif',
+            'persenPositif',
+            'persenNetral',
             'tingkatKepuasan',
             'labelKepuasan',
+            'totalDestinasiAnalisis',
+            'totalDestinasiBerkeluhan',
+            'periodeAktif',
             'isuUtama',
+            'isuNegatif',
+            'isuNetral',
+            'isuPositif',
             'isuDominan',
             'isuDominanPersen',
             'kataDominan',

@@ -10,6 +10,7 @@ class AnalisisController extends Controller
 {
     public function index(Request $request)
     {
+       ; 
         $periodeList = DB::table('periode_analisis as p')
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
@@ -55,7 +56,8 @@ class AnalisisController extends Controller
             $query->where('wisata', $request->wisata);
         }
 
-        $hasil = $query->orderBy('id', 'desc')->paginate(10);
+        $hasil = $query->orderBy('created_at', 'desc')->paginate(10);
+        
         $standalone = true;
 
         return view('analisis.index', compact(
@@ -64,7 +66,9 @@ class AnalisisController extends Controller
             'evaluasi',
             'standalone',
             'jumlahKelasAnalisis',
-            'totalHasilAnalisis'
+            'totalHasilAnalisis',
+            'periodeAktif',   // ← tambahkan
+            'periodeList',    // ← tambahkan
         ));
     }
 }
