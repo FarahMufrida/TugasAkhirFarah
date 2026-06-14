@@ -22,26 +22,25 @@ class RekomendasiController extends Controller
                 'tip'     => 'Tambah tempat sampah & jadwal pembersihan rutin.',
             ],
         ],
-        'Aksesibilitas' => [
-            // FIX: diperluas — sebelumnya hanya mencakup parkir,
-            // sekarang mencakup akses jalan, transportasi, dan kemudahan mencapai lokasi
+        'Parkir' => [
             'keywords' => [
-                'parkir', 'lahan parkir', 'tempat parkir', 'parkiran', 'motor', 'mobil',
-                'jalan', 'akses', 'transportasi', 'jalur', 'tanjakan',
-                'turunan', 'sempit', 'jauh', 'susah', 'sulit', 'capek',
-                'angkutan', 'ojek', 'kendaraan', 'macet',
+                // FIX: hapus 'motor', 'mobil', 'kendaraan' — terlalu ambigu,
+                // sering muncul dalam konteks "harga tiket kendaraan" bukan keluhan parkir.
+                // Hanya gunakan frasa yang secara spesifik merujuk pada area/masalah parkir.
+                'parkir', 'lahan parkir', 'tempat parkir', 'parkiran',
+                'bayar parkir', 'tarif parkir', 'biaya parkir',
+                'jukir', 'tukang parkir', 'penjaga parkir', 'petugas parkir',
+                'palak parkir', 'pungli parkir',
             ],
             'color'    => 'orange',
             'icon'     => '🚗',
             'saran'    => [
-                'actions' => ['Penataan area parkir', 'Perbaikan akses jalan', 'Penambahan transportasi umum'],
-                'dampak'  => 'Mengurangi keluhan aksesibilitas',
-                'tip'     => 'Sistem parkir lebih rapi dan akses jalan diperbaiki.',
+                'actions' => ['Penataan area parkir', 'Tarif transparan', 'Petugas lebih ramah'],
+                'dampak'  => 'Mengurangi keluhan',
+                'tip'     => 'Sistem parkir lebih rapi dan tarif jelas.',
             ],
         ],
-        // FIX: nama diganti dari 'Harga / Tiket' → 'HTM'
-        // agar konsisten dengan parameter TA (Harga Tiket Masuk)
-        'HTM' => [
+        'Harga / Tiket' => [
             'keywords' => [
                 'mahal', 'harga', 'tiket', 'bayar', 'biaya', 'tarif',
                 'murah', 'terjangkau', 'htm', 'retribusi', 'pungli',
@@ -64,6 +63,16 @@ class RekomendasiController extends Controller
                 'tip'     => 'Fasilitas lengkap & terawat meningkatkan kepuasan.',
             ],
         ],
+        'Keramaian' => [
+            'keywords' => ['ramai', 'antri', 'penuh', 'sesak', 'macet', 'padat', 'berdesakan', 'keramaian', 'pengunjung banyak'],
+            'color'    => 'blue',
+            'icon'     => '👥',
+            'saran'    => [
+                'actions' => ['Terapkan sistem reservasi', 'Batasi kapasitas pengunjung', 'Tambah jalur masuk'],
+                'dampak'  => 'Kenyamanan kunjungan meningkat',
+                'tip'     => 'Manajemen kapasitas pengunjung lebih baik.',
+            ],
+        ],
     ];
 
     public function index(Request $request)
@@ -74,11 +83,7 @@ class RekomendasiController extends Controller
             ->distinct()
             ->pluck('wisata');
 
-        // --- 2. Query dengan filter destinasi & periode ---
-        $queryAll    = HasilAnalisis::query();
-        $queryFilter = HasilAnalisis::query();
-
-        // Resolve periode dari request (periode_bulan atau periode_id)
+        // --- 2. Resolve periode ---
         $periodeId = null;
         if ($request->filled('periode_id')) {
             $periodeId = (int) $request->periode_id;
@@ -91,7 +96,6 @@ class RekomendasiController extends Controller
             $periodeId = $periodeRow?->id;
         }
 
-        // Kalau tidak ada periode di request → pakai periode bulan ini
         if (!$periodeId) {
             $periodeRow = DB::table('periode_analisis')
                 ->where('bulan', now()->month)
@@ -99,6 +103,10 @@ class RekomendasiController extends Controller
                 ->first();
             $periodeId = $periodeRow?->id;
         }
+
+        // --- 3. Query builder ---
+        $queryAll    = HasilAnalisis::query();
+        $queryFilter = HasilAnalisis::query();
 
         if ($periodeId) {
             $queryAll->where('periode_id', $periodeId);
@@ -109,172 +117,73 @@ class RekomendasiController extends Controller
             $queryFilter->where('wisata', $request->destinasi);
         }
 
-        // --- 3. Hitung total & sentimen ---
-        $totalUlasan   = $queryFilter->count();
-        $totalNegatif  = (clone $queryFilter)->where('sentimen', 'negatif')->count();
-        $totalPositif  = (clone $queryFilter)->where('sentimen', 'positif')->count();
-        $totalNetral   = (clone $queryFilter)->where('sentimen', 'netral')->count();
+        // --- 4. Hitung total & sentimen ---
+        $totalUlasan  = $queryFilter->count();
+        $totalNegatif = (clone $queryFilter)->where('sentimen', 'negatif')->count();
+        $totalPositif = (clone $queryFilter)->where('sentimen', 'positif')->count();
+        $totalNetral  = (clone $queryFilter)->where('sentimen', 'netral')->count();
 
-        $persenNegatif     = $totalUlasan > 0 ? round(($totalNegatif / $totalUlasan) * 100, 2) : 0;
-        $persenPositif     = $totalUlasan > 0 ? round(($totalPositif / $totalUlasan) * 100) : 0;
-        $persenNetral      = $totalUlasan > 0 ? round(($totalNetral  / $totalUlasan) * 100) : 0;
-        $tingkatKepuasan   = $persenPositif;
+        $persenNegatif   = $totalUlasan > 0 ? round(($totalNegatif / $totalUlasan) * 100, 2) : 0;
+        $persenPositif   = $totalUlasan > 0 ? round(($totalPositif / $totalUlasan) * 100) : 0;
+        $persenNetral    = $totalUlasan > 0 ? round(($totalNetral  / $totalUlasan) * 100) : 0;
+        $tingkatKepuasan = $persenPositif;
 
-        // --- 3a. Statistik destinasi ---
-        $totalDestinasiAnalisis   = $queryAll->distinct('wisata')->count('wisata');
+        // --- 5. Statistik destinasi & periode ---
+        $totalDestinasiAnalisis   = (clone $queryAll)->distinct('wisata')->count('wisata');
         $totalDestinasiBerkeluhan = (clone $queryAll)->where('sentimen', 'negatif')
             ->distinct('wisata')->count('wisata');
 
-        // --- 3b. Periode aktif ---
         $periodeAktif = $periodeId
             ? DB::table('periode_analisis')->find($periodeId)
             : null;
 
-        // Label kepuasan
         $labelKepuasan = match(true) {
             $tingkatKepuasan >= 80 => 'Baik',
             $tingkatKepuasan >= 60 => 'Sedang',
             default                => 'Kurang',
         };
 
-        // --- 4. Ambil ulasan negatif & bersihkan teks ---
-        // FIX: fallback ke kolom 'ulasan' jika 'ulasan_bersih' tidak tersedia
-        $ulasanNegatif = (clone $queryFilter)
-            ->where('sentimen', 'negatif')
-            ->get(['ulasan_bersih', 'ulasan'])
-            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan ?? '')
-            ->filter()
-            ->toArray();
+        // =========================================================
+        // PERBAIKAN UTAMA: Hitung isu per ulasan (bukan per keyword)
+        // Logika: 1 ulasan dihitung 1x untuk setiap kategori yang
+        // keyword-nya ditemukan dalam teks ulasan tersebut.
+        // Persentase = jumlah_ulasan_mengandung_kategori / total_ulasan_sentimen × 100
+        // =========================================================
 
-        $text  = strtolower(implode(' ', $ulasanNegatif));
-        $words = array_filter(preg_split('/\s+/', $text));
+        $isuNegatif = $this->hitungIsuPerUlasan(
+            (clone $queryFilter)->where('sentimen', 'negatif')->get(['ulasan_bersih', 'ulasan_asli']),
+            $totalNegatif
+        );
 
-        // --- 5. Rule-based: hitung skor tiap kategori isu ---
-        $issueSkor  = [];
-        $issueWords = [];  // kata dominan per kategori
+        $isuNetral = $this->hitungIsuPerUlasan(
+            (clone $queryFilter)->where('sentimen', 'netral')->get(['ulasan_bersih', 'ulasan_asli']),
+            $totalNetral
+        );
 
-        foreach ($this->issueRules as $kategori => $rule) {
-            $skor       = 0;
-            $matchWords = [];
+        $isuPositif = $this->hitungIsuPerUlasan(
+            (clone $queryFilter)->where('sentimen', 'positif')->get(['ulasan_bersih', 'ulasan_asli']),
+            $totalPositif
+        );
 
-            foreach ($rule['keywords'] as $kw) {
-                $count = substr_count($text, $kw);
-                if ($count > 0) {
-                    $skor += $count;
-                    $matchWords[$kw] = $count;
-                }
-            }
+        // isuUtama = sama dengan isuNegatif (untuk kompatibilitas variabel lama)
+        $isuUtama = $isuNegatif;
 
-            $issueSkor[$kategori]  = $skor;
-            $issueWords[$kategori] = $matchWords;
-        }
-
-        // Urutkan berdasarkan skor tertinggi
-        arsort($issueSkor);
-
-        $totalSkorIsu = array_sum($issueSkor) ?: 1; // hindari division by zero
-
-        // --- 6. Isu utama (top 5) dengan persentase ---
-        $isuUtama = [];
-        foreach (array_slice($issueSkor, 0, 5, true) as $nama => $skor) {
-            $isuUtama[] = [
-                'nama'    => $nama,
-                'skor'    => $skor,
-                'persen'  => round(($skor / $totalSkorIsu) * 100),
-                'color'   => $this->issueRules[$nama]['color'],
-                'icon'    => $this->issueRules[$nama]['icon'],
-            ];
-        }
-
-        // --- 6a. Isu negatif (untuk kolom tabel negatif di tampilan) ---
-        $isuNegatif = [];
-        foreach (array_slice($issueSkor, 0, 5, true) as $nama => $skor) {
-            $isuNegatif[] = [
-                'nama'   => $nama,
-                'skor'   => $skor,
-                'persen' => round(($skor / $totalSkorIsu) * 100),
-                'color'  => $this->issueRules[$nama]['color'],
-                'icon'   => $this->issueRules[$nama]['icon'],
-            ];
-        }
-
-        // --- 6b. Isu netral (rule-based dari ulasan netral) ---
-        $ulasanNetral = (clone $queryFilter)
-            ->where('sentimen', 'netral')
-            ->get(['ulasan_bersih', 'ulasan'])
-            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan ?? '')
-            ->filter()
-            ->toArray();
-
-        $textNetral  = strtolower(implode(' ', $ulasanNetral));
-        $skorNetral  = [];
-        foreach ($this->issueRules as $kategori => $rule) {
-            $skor = 0;
-            foreach ($rule['keywords'] as $kw) {
-                $skor += substr_count($textNetral, $kw);
-            }
-            $skorNetral[$kategori] = $skor;
-        }
-        arsort($skorNetral);
-        $totalSkorNetral = array_sum($skorNetral) ?: 1;
-
-        $isuNetral = [];
-        foreach (array_slice($skorNetral, 0, 5, true) as $nama => $skor) {
-            $isuNetral[] = [
-                'nama'   => $nama,
-                'skor'   => $skor,
-                'persen' => round(($skor / $totalSkorNetral) * 100),
-                'color'  => $this->issueRules[$nama]['color'],
-                'icon'   => $this->issueRules[$nama]['icon'],
-            ];
-        }
-
-        // --- 6c. Isu positif (rule-based dari ulasan positif) ---
-        $ulasanPositif = (clone $queryFilter)
-            ->where('sentimen', 'positif')
-            ->get(['ulasan_bersih', 'ulasan'])
-            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan ?? '')
-            ->filter()
-            ->toArray();
-
-        $textPositif  = strtolower(implode(' ', $ulasanPositif));
-        $skorPositif  = [];
-        foreach ($this->issueRules as $kategori => $rule) {
-            $skor = 0;
-            foreach ($rule['keywords'] as $kw) {
-                $skor += substr_count($textPositif, $kw);
-            }
-            $skorPositif[$kategori] = $skor;
-        }
-        arsort($skorPositif);
-        $totalSkorPositif = array_sum($skorPositif) ?: 1;
-
-        $isuPositif = [];
-        foreach (array_slice($skorPositif, 0, 5, true) as $nama => $skor) {
-            $isuPositif[] = [
-                'nama'   => $nama,
-                'skor'   => $skor,
-                'persen' => round(($skor / $totalSkorPositif) * 100),
-                'color'  => $this->issueRules[$nama]['color'],
-                'icon'   => $this->issueRules[$nama]['icon'],
-            ];
-        }
-
-        // --- 7. Isu dominan (ranking 1) ---
-        // FIX: guard jika tidak ada ulasan negatif sama sekali
-        if (empty($isuUtama) || $isuUtama[0]['skor'] === 0) {
+        // --- 6. Isu dominan & prioritas rekomendasi ---
+        if (empty($isuNegatif) || ($isuNegatif[0]['jumlah'] ?? 0) === 0) {
             $isuDominan       = 'Tidak ada keluhan';
             $isuDominanPersen = 0;
             $prioritas        = [];
             $saranPerbaikan   = [];
         } else {
-            $isuDominan       = $isuUtama[0]['nama'];
-            $isuDominanPersen = $isuUtama[0]['persen'];
+            $isuDominan       = $isuNegatif[0]['nama'];
+            $isuDominanPersen = $isuNegatif[0]['persen'];
 
-            // --- 9. Prioritas rekomendasi (top 3 isu) ---
+            // Prioritas: top 3 isu negatif berdasarkan jumlah ulasan
             $prioritas = [];
-            $rank       = 1;
-            foreach (array_slice($issueSkor, 0, 3, true) as $nama => $skor) {
+            $rank = 1;
+            foreach (array_slice($isuNegatif, 0, 3) as $isu) {
+                if ($isu['jumlah'] === 0) break;
+                $nama = $isu['nama'];
                 $prioritas[] = [
                     'rank'    => $rank++,
                     'nama'    => $nama,
@@ -282,12 +191,15 @@ class RekomendasiController extends Controller
                     'actions' => $this->issueRules[$nama]['saran']['actions'],
                     'dampak'  => $this->issueRules[$nama]['saran']['dampak'],
                     'color'   => $this->issueRules[$nama]['color'],
+                    'jumlah'  => $isu['jumlah'],
+                    'persen'  => $isu['persen'],
                 ];
             }
 
-            // --- 10. Saran perbaikan (top 3) ---
             $saranPerbaikan = [];
-            foreach (array_slice($issueSkor, 0, 3, true) as $nama => $skor) {
+            foreach (array_slice($isuNegatif, 0, 3) as $isu) {
+                if ($isu['jumlah'] === 0) break;
+                $nama = $isu['nama'];
                 $saranPerbaikan[] = [
                     'nama' => 'Perbaikan ' . $nama,
                     'tip'  => $this->issueRules[$nama]['saran']['tip'],
@@ -296,7 +208,17 @@ class RekomendasiController extends Controller
             }
         }
 
-        // --- 8. Kata kunci dominan (global, top 10, filter stopword) ---
+        // --- 7. Kata kunci dominan dari ulasan negatif ---
+        $ulasanNegatifTeks = (clone $queryFilter)
+            ->where('sentimen', 'negatif')
+            ->get(['ulasan_bersih', 'ulasan_asli'])
+            ->map(fn($r) => $r->ulasan_bersih ?? $r->ulasan_asli ?? '')
+            ->filter()
+            ->toArray();
+
+        $textNegatif = strtolower(implode(' ', $ulasanNegatifTeks));
+        $words       = array_filter(preg_split('/\s+/', $textNegatif));
+
         $stopwords = [
             'yang', 'dan', 'di', 'ke', 'dari', 'untuk', 'dengan',
             'ini', 'itu', 'tidak', 'ada', 'juga', 'sangat', 'lebih',
@@ -309,15 +231,12 @@ class RekomendasiController extends Controller
         foreach ($stopwords as $sw) {
             unset($freq[$sw]);
         }
-        // filter kata pendek (< 3 karakter)
         foreach (array_keys($freq) as $w) {
             if (mb_strlen($w) < 3) unset($freq[$w]);
         }
-
         arsort($freq);
         $kataDominan = array_slice($freq, 0, 10, true);
 
-        // --- 11. Filter destinasi yang sedang aktif ---
         $destinasiAktif = $request->input('destinasi', 'Semua Destinasi');
 
         return view('rekomendasi.index', compact(
@@ -346,5 +265,58 @@ class RekomendasiController extends Controller
             'saranPerbaikan',
             'prioritas',
         ));
+    }
+
+    /**
+     * Hitung isu per ulasan — BENAR.
+     *
+     * Setiap ulasan hanya dihitung SATU KALI per kategori meski
+     * keyword-nya muncul berkali-kali dalam satu ulasan yang sama.
+     * Persentase = (jumlah ulasan mengandung kategori / total ulasan) × 100
+     *
+     * @param  \Illuminate\Support\Collection  $ulasanCollection  hasil ->get(['ulasan_bersih','ulasan_asli'])
+     * @param  int  $totalUlasan  total ulasan pada sentimen yang sama
+     * @return array  top-5 isu, sudah diurutkan dari tertinggi
+     */
+    private function hitungIsuPerUlasan($ulasanCollection, int $totalUlasan): array
+    {
+        // Siapkan teks tiap ulasan (fallback ke ulasan_asli jika ulasan_bersih kosong)
+        $teksUlasan = $ulasanCollection
+            ->map(fn($r) => strtolower($r->ulasan_bersih ?? $r->ulasan_asli ?? ''))
+            ->filter()
+            ->values();
+
+        // Hitung berapa ulasan yang menyebut tiap kategori
+        $jumlahPerKategori = [];
+        foreach ($this->issueRules as $kategori => $rule) {
+            $jumlah = 0;
+            foreach ($teksUlasan as $teks) {
+                foreach ($rule['keywords'] as $kw) {
+                    if (str_contains($teks, $kw)) {
+                        $jumlah++;
+                        break; // 1 ulasan dihitung 1x per kategori
+                    }
+                }
+            }
+            $jumlahPerKategori[$kategori] = $jumlah;
+        }
+
+        // Urutkan dari terbanyak
+        arsort($jumlahPerKategori);
+
+        // Bangun array hasil top-5
+        $hasil = [];
+        foreach (array_slice($jumlahPerKategori, 0, 5, true) as $nama => $jumlah) {
+            $persen = $totalUlasan > 0 ? round(($jumlah / $totalUlasan) * 100) : 0;
+            $hasil[] = [
+                'nama'   => $nama,
+                'jumlah' => $jumlah,
+                'persen' => $persen,
+                'color'  => $this->issueRules[$nama]['color'],
+                'icon'   => $this->issueRules[$nama]['icon'],
+            ];
+        }
+
+        return $hasil;
     }
 }

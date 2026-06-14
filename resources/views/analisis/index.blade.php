@@ -15,9 +15,7 @@
     <div class="flex justify-between items-center">
         <div>
             <h2 class="text-2xl font-bold">Hasil Analisis Sentimen</h2>
-            <p class="text-gray-500 text-sm">
-                Evaluasi memakai pseudo-label dari rating/rule otomatis, bukan anotasi manual.
-            </p>
+            
             @if($totalHasilAnalisis > 0 && !$evaluasiTersedia)
                 <p class="text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-3 py-2 mt-3">
                     Semua hasil hanya memiliki {{ $jumlahKelasAnalisis }} kelas sentimen. Precision, recall, F1, dan akurasi tidak dihitung karena evaluasi klasifikasi membutuhkan minimal 2 kelas. Detail hasil analisis tetap ditampilkan di bawah.

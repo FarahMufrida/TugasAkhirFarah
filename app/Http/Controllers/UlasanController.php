@@ -309,36 +309,63 @@ class UlasanController extends Controller
             ->with('success', 'Data ulasan, hasil analisis, dan evaluasi untuk periode ini sudah dikosongkan.');
     }
 
-    public function analisisData(Request $request)
-    {
-        $this->allowLongRunningRequest();
+   public function analisisData(Request $request)
+{
+    $this->allowLongRunningRequest();
 
-        $periodeId = $request->input('periode_id')
-            ?: DB::table('ulasan')->max('periode_id');
+    $periodeId = $request->input('periode_id')
+        ?: DB::table('ulasan')->max('periode_id');
 
-        if (!$periodeId) {
-            return redirect()->route('ulasan.index')
-                ->with('error', 'Analisis gagal: belum ada ulasan. Jalankan Ambil Data terlebih dahulu.');
-        }
-
-        $totalUlasan = DB::table('ulasan')->where('periode_id', $periodeId)->count();
-        if ($totalUlasan === 0) {
-            return redirect()->route('ulasan.index', ['periode_id' => $periodeId])
-                ->with('error', 'Analisis gagal: belum ada ulasan pada periode yang dipilih.');
-        }
-
-        $analisis = $this->runPythonScript(base_path('scraper/analisis.py'), 900, [
-            '--periode-id', (string) $periodeId,
-        ]);
-
-        if (!$analisis['success']) {
-            return redirect()->route('ulasan.index')
-                ->with('error', 'Analisis gagal: ' . $analisis['output']);
-        }
-
-        return redirect()->route('dashboard', ['periode_id' => $periodeId, 'tab' => 'analisis'])
-            ->with('success', 'Analisis berhasil dijalankan.');
+    if (!$periodeId) {
+        return redirect()->route('ulasan.index')
+            ->with('error', 'Analisis gagal: belum ada ulasan. Jalankan Ambil Data terlebih dahulu.');
     }
+
+    $totalUlasan = DB::table('ulasan')
+        ->where('periode_id', $periodeId)
+        ->count();
+
+    if ($totalUlasan === 0) {
+        return redirect()->route('ulasan.index', ['periode_id' => $periodeId])
+            ->with('error', 'Analisis gagal: belum ada ulasan pada periode yang dipilih.');
+    }
+
+    // Cek apakah masih ada ulasan baru yang belum dianalisis
+    $totalUlasanBaru = DB::table('ulasan as u')
+        ->where('u.periode_id', $periodeId)
+        ->whereNotNull('u.ulasan')
+        ->whereRaw("TRIM(u.ulasan) != ''")
+        ->whereRaw("TRIM(u.ulasan) != '0'")
+        ->where('u.ulasan', 'not like', '%[Tanpa teks]%')
+        ->whereRaw("CHAR_LENGTH(TRIM(u.ulasan)) >= 3")
+        ->whereNotExists(function ($q) {
+            $q->select(DB::raw(1))
+                ->from('hasil_analisis as h')
+                ->whereColumn('h.ulasan_id', 'u.id');
+        })
+        ->count();
+
+    if ($totalUlasanBaru === 0) {
+        return redirect()->route('dashboard', [
+            'periode_id' => $periodeId,
+            'tab' => 'analisis'
+        ])->with('error', 'Tidak ada data baru yang dapat dianalisis. Semua ulasan pada periode ini sudah dianalisis atau tidak memiliki teks ulasan yang layak dianalisis.');
+    }
+
+    $analisis = $this->runPythonScript(base_path('scraper/analisis.py'), 900, [
+        '--periode-id', (string) $periodeId,
+    ]);
+
+    if (!$analisis['success']) {
+        return redirect()->route('ulasan.index')
+            ->with('error', 'Analisis gagal: ' . $analisis['output']);
+    }
+
+    return redirect()->route('dashboard', [
+        'periode_id' => $periodeId,
+        'tab' => 'analisis'
+    ])->with('success', $totalUlasanBaru . ' ulasan baru berhasil dianalisis.');
+}
 
     // private function runPythonScript(string $scriptPath, int $timeout, array $arguments = []): array
     // {

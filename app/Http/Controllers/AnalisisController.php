@@ -10,7 +10,6 @@ class AnalisisController extends Controller
 {
     public function index(Request $request)
     {
-       ; 
         $periodeList = DB::table('periode_analisis as p')
             ->whereExists(function ($q) {
                 $q->select(DB::raw(1))
@@ -22,15 +21,17 @@ class AnalisisController extends Controller
             ->get();
 
         $availablePeriodeIds = $periodeList->pluck('id')->map(fn($id) => (string) $id);
+
         $periodeAktif = $request->periode_id && $availablePeriodeIds->contains((string) $request->periode_id)
             ? $periodeList->firstWhere('id', (int) $request->periode_id)
             : $periodeList->first();
+
         $periodeId = $periodeAktif->id ?? null;
 
-        // Evaluasi ini berbasis pseudo-label dari rating/rule otomatis.
+        // Evaluasi ini berbasis pseudo-label dari rating/rule otomatis
         $evaluasi = DB::table('evaluasi_model')
             ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
-            ->latest()
+            ->orderByDesc('id')
             ->first();
 
         $jumlahKelasAnalisis = DB::table('hasil_analisis')
@@ -43,21 +44,30 @@ class AnalisisController extends Controller
             ->count();
 
         // Dropdown wisata
-        $wisataList = HasilAnalisis::select('wisata')
+        $wisataList = HasilAnalisis::query()
+            ->select('wisata')
             ->when($periodeId, fn($q) => $q->where('periode_id', $periodeId))
             ->distinct()
             ->pluck('wisata');
 
         // Query hasil analisis dengan filter
-        $query = HasilAnalisis::query();
-        $query->when($periodeId, fn($q) => $q->where('periode_id', $periodeId));
+        // Diurutkan berdasarkan tanggal ulasan terbaru dari tabel ulasan
+        $query = HasilAnalisis::query()
+            ->leftJoin('ulasan as u', 'hasil_analisis.ulasan_id', '=', 'u.id')
+            ->select('hasil_analisis.*');
+
+        $query->when($periodeId, fn($q) => $q->where('hasil_analisis.periode_id', $periodeId));
 
         if ($request->filled('wisata')) {
-            $query->where('wisata', $request->wisata);
+            $query->where('hasil_analisis.wisata', $request->wisata);
         }
 
-        $hasil = $query->orderBy('created_at', 'desc')->paginate(10);
-        
+        $hasil = $query
+            ->orderByRaw('COALESCE(u.tanggal, hasil_analisis.created_at) DESC')
+            ->orderBy('hasil_analisis.id', 'desc')
+            ->paginate(10)
+            ->withQueryString();
+
         $standalone = true;
 
         return view('analisis.index', compact(
@@ -67,8 +77,8 @@ class AnalisisController extends Controller
             'standalone',
             'jumlahKelasAnalisis',
             'totalHasilAnalisis',
-            'periodeAktif',   // ← tambahkan
-            'periodeList',    // ← tambahkan
+            'periodeAktif',
+            'periodeList'
         ));
     }
 }
